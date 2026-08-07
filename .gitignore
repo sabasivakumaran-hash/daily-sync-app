@@ -1,0 +1,6 @@
+credentials.json
+*.db
+*.sqlite3
+__pycache__/
+.env
+venv/

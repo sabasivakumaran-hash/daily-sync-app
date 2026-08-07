@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="text-primary mb-0"><i class="bi bi-journal-text me-2"></i>Master Activity Detail</h3>
+    </div>
+
+    <!-- Summary Metrics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light border-0 shadow-sm text-center p-3">
+                <span class="text-muted small fw-bold">TOTAL TRANSACTIONS</span>
+                <h4 class="fw-bold mb-0 text-dark">{{ total_count }}</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success bg-opacity-10 border-0 shadow-sm text-center p-3">
+                <span class="text-success small fw-bold">TOTAL INCOME</span>
+                <h4 class="fw-bold mb-0 text-success">${{ "%.2f"|format(total_income) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger bg-opacity-10 border-0 shadow-sm text-center p-3">
+                <span class="text-danger small fw-bold">TOTAL EXPENSES</span>
+                <h4 class="fw-bold mb-0 text-danger">${{ "%.2f"|format(total_expense) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary bg-opacity-10 border-0 shadow-sm text-center p-3">
+                <span class="text-primary small fw-bold">NET BALANCE</span>
+                <h4 class="fw-bold mb-0 text-primary">${{ "%.2f"|format(net_balance) }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card p-3 mb-4 shadow-sm bg-light">
+        <form method="GET" action="{{ url_for('master_detail') }}" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">From Date</label>
+                <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">To Date</label>
+                <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Activity</label>
+                <select name="activity_id" class="form-select form-select-sm">
+                    <option value="">-- All Activities --</option>
+                    {% for a in activities %}
+                        <option value="{{ a.id }}" {% if activity_filter == a.id|string %}selected{% endif %}>
+                            {{ a.activity_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold">Type</label>
+                <select name="trans_type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    <option value="Income" {% if type_filter == 'Income' %}selected{% endif %}>Income</option>
+                    <option value="Expense" {% if type_filter == 'Expense' %}selected{% endif %}>Expense</option>
+                </select>
+            </div>
+            <div class="col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-filter"></i> Filter</button>
+                <a href="{{ url_for('master_detail') }}" class="btn btn-sm btn-outline-secondary" title="Reset Filters"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Read-Only Master Detail Grid -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 110px;">Sequence ID</th>
+                            <th>Date</th>
+                            <th>AM/PM</th>
+                            <th>Activity</th>
+                            <th>Category</th>
+                            <th class="text-end">Qty</th>
+                            <th>Type</th>
+                            <th class="text-end">Total Amount ($)</th>
+                            <th>Name</th>
+                            <th>Notes</th>
+                            <th class="text-center" style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in transactions %}
+                        <tr>
+                            <td class="fw-bold">#{{ row.id }}</td>
+                            <td>{{ row.trans_date }}</td>
+                            <td><span class="badge bg-secondary">{{ row.ampm }}</span></td>
+                            <td class="fw-bold text-dark">{{ row.activity_name }}</td>
+                            <td><small class="text-muted">{{ row.category }}</small></td>
+                            <td class="text-end">{{ row.qty }}</td>
+                            <td>
+                                {% if row.trans_type == 'Income' %}
+                                    <span class="badge bg-success">Income</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Expense</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold">${{ "%.2f"|format(row.total_amount) }}</td>
+                            <td>{{ row.person_name or '-' }}</td>
+                            <td><small class="text-muted">{{ row.notes or '-' }}</small></td>
+                            <td class="text-center">
+                                <a href="{{ url_for('daily', edit_id=row.id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="View/Edit in Daily Activity">
+                                    <i class="bi bi-pencil-square"></i> Detail
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="11" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="bi bi-inbox display-5 d-block mb-3 text-secondary"></i>
+                                    <h5 class="fw-bold mb-1">No Daily Transactions Found</h5>
+                                    <p class="small text-secondary mb-0">There are no records matching your current filter criteria or date range.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if transactions %}
+                    <tfoot class="table-secondary fw-bold">
+                        <tr>
+                            <td colspan="5" class="text-end">TOTAL:</td>
+                            <td class="text-end">{{ grand_qty }}</td>
+                            <td></td>
+                            <td class="text-end text-primary">${{ "%.2f"|format(grand_total_amount) }}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

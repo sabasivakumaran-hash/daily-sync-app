@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<!-- PAGE TITLE -->
+<div class="mb-3">
+    <h4 class="fw-bold text-dark mb-0">
+        <i class="fa-solid fa-list-check me-2 text-success"></i>Activity Lookup Master
+    </h4>
+</div>
+
+<!-- PANEL 1: ENTRY & EDIT FORM (HIDDEN BY DEFAULT) -->
+<div id="panel1" class="card shadow-sm border mb-4" style="display: none;">
+    <div class="card-header bg-light fw-bold text-dark d-flex align-items-center">
+        <i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Activity Form (Add / Edit)
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('save_activity') }}" method="POST" class="row g-3" onsubmit="hidePanel1()">
+            <input type="hidden" name="activity_id" id="activity_id" value="">
+
+            <div class="col-md-3">
+                <label for="category" class="form-label fw-semibold">Income / Expense <span class="text-danger">*</span></label>
+                <select class="form-select" id="category" name="category" required>
+                    <option value="" disabled selected>-- Select Income / Expense --</option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="activity_name" class="form-label fw-semibold">Activity Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="activity_name" name="activity_name" placeholder="e.g., Archana" required>
+            </div>
+
+            <div class="col-md-3">
+                <label for="is_active" class="form-label fw-semibold">Status</label>
+                <select class="form-select" id="is_active" name="is_active">
+                    <option value="1" selected>Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+            </div>
+
+            <div class="col-md-12">
+                <label for="description" class="form-label fw-semibold">Description</label>
+                <input type="text" class="form-control" id="description" name="description" placeholder="Brief details about this activity category">
+            </div>
+
+            <div class="col-12 text-end mt-3">
+                <button type="button" class="btn btn-secondary btn-sm me-2" onclick="cancelForm()">
+                    <i class="fa-solid fa-xmark me-1"></i> Cancel
+                </button>
+                <button type="submit" class="btn btn-success btn-sm px-4 fw-semibold">
+                    <i class="fa-solid fa-floppy-disk me-1"></i> Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- PANEL 2: DATA RECORDS TABLE -->
+<div id="panel2" class="card shadow-sm border">
+    <div class="card-header bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fa-solid fa-table me-2 text-success"></i> Activity Lookup Records
+            <span class="badge bg-secondary ms-2">{{ activities|length }} Records</span>
+        </div>
+        <button id="togglePanel1Btn" class="btn btn-sm btn-success fw-semibold" onclick="togglePanel1()">
+            <i class="fa-solid fa-plus me-1"></i> Add
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th style="width: 110px;" class="text-center">Status</th>
+                        <th>Activity Name</th>
+                        <th style="width: 160px;">Income / Expense</th>
+                        <th>Description</th>
+                        <th style="width: 120px;" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in activities %}
+                    <tr>
+                        <td class="text-center">
+                            {% if item['is_active'] == 1 %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark">{{ item['activity_name'] }}</td>
+                        <td>
+                            {% if item['category'] == 'Income' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Income</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Expense</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-secondary small">{{ item['description'] or '—' }}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-primary py-0 px-2" 
+                                    onclick="editActivity({{ item['id'] }}, '{{ item['category'] }}', '{{ item['activity_name'] }}', '{{ item['description'] or '' }}', {{ item['is_active'] }})"
+                                    title="Edit Record">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No activity records found in database.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePanel1() {
+        const panel1 = document.getElementById('panel1');
+        if (panel1.style.display === 'none' || panel1.style.display === '') {
+            resetForm();
+            panel1.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            panel1.style.display = 'none';
+        }
+    }
+
+    function hidePanel1() {
+        document.getElementById('panel1').style.display = 'none';
+    }
+
+    function cancelForm() {
+        resetForm();
+        hidePanel1();
+    }
+
+    function editActivity(id, category, name, description, isActive) {
+        document.getElementById('panel1').style.display = 'block';
+
+        document.getElementById('activity_id').value = id;
+        document.getElementById('category').value = category;
+        document.getElementById('activity_name').value = name;
+        document.getElementById('description').value = description;
+        document.getElementById('is_active').value = isActive;
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+        document.getElementById('activity_id').value = '';
+        document.getElementById('category').value = '';
+        document.getElementById('activity_name').value = '';
+        document.getElementById('description').value = '';
+        document.getElementById('is_active').value = '1';
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<!-- TOP BAR CONTROLS -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold text-dark mb-0">
+        <i class="fa-solid fa-pen-to-square me-2 text-success"></i>Daily Activity Tracker
+    </h4>
+    <button id="togglePanel1Btn" class="btn btn-sm btn-outline-success fw-semibold" onclick="togglePanel1()">
+        <i class="fa-solid fa-eye me-1"></i> Show Panel 1 (Entry Form)
+    </button>
+</div>
+
+<!-- PANEL 1: DAILY TRANSACTION ENTRY FORM (TOP - HIDDEN BY DEFAULT) -->
+<div id="panel1" class="card shadow-sm border mb-4" style="display: none;">
+    <div class="card-header bg-light fw-bold text-dark d-flex align-items-center">
+        <i class="fa-solid fa-plus-circle me-2 text-primary"></i> Panel 1: New Daily Transaction Entry
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('save_daily_activity') }}" method="POST" class="row g-3">
+            <input type="hidden" name="seq_id" id="seq_id" value="">
+
+            <div class="col-md-3">
+                <label for="txn_date" class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="txn_date" name="txn_date" required>
+            </div>
+
+            <div class="col-md-2">
+                <label for="am_pm" class="form-label fw-semibold">Session</label>
+                <select class="form-select" id="am_pm" name="am_pm">
+                    <option value="AM" selected>AM</option>
+                    <option value="PM">PM</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label for="txn_type" class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
+                <select class="form-select" id="txn_type" name="txn_type" required>
+                    <option value="Income" selected>Income</option>
+                    <option value="Expense">Expense</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="activity" class="form-label fw-semibold">Activity <span class="text-danger">*</span></label>
+                <select class="form-select" id="activity" name="activity" required>
+                    <option value="" disabled selected>-- Select Activity --</option>
+                    {% for item in lookups %}
+                    <option value="{{ item['activity_name'] }}">{{ item['activity_name'] }} ({{ item['category'] }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="quantity" class="form-label fw-semibold">Qty <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required>
+            </div>
+
+            <div class="col-md-3">
+                <label for="amount" class="form-label fw-semibold">Amount ($) <span class="text-danger">*</span></label>
+                <input type="number" step="0.01" class="form-control" id="amount" name="amount" placeholder="0.00" required>
+            </div>
+
+            <div class="col-md-7">
+                <label for="name" class="form-label fw-semibold">Devotee / Payee Name</label>
+                <input type="text" class="form-control" id="name" name="name" placeholder="Optional name">
+            </div>
+
+            <div class="col-md-12">
+                <label for="notes" class="form-label fw-semibold">Notes / Remarks</label>
+                <input type="text" class="form-control" id="notes" name="notes" placeholder="Additional transaction notes">
+            </div>
+
+            <div class="col-12 text-end mt-3">
+                <button type="button" class="btn btn-secondary btn-sm me-2" onclick="resetForm()">
+                    <i class="fa-solid fa-rotate-left me-1"></i> Clear / Reset
+                </button>
+                <button type="submit" class="btn btn-success btn-sm px-4 fw-semibold">
+                    <i class="fa-solid fa-floppy-disk me-1"></i> Save Transaction
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- PANEL 2: DAILY TRANSACTIONS TABLE (BOTTOM) -->
+<div id="panel2" class="card shadow-sm border">
+    <div class="card-header bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-table me-2 text-success"></i> Panel 2: Daily Transaction Records</span>
+        <span class="badge bg-secondary">{{ transactions|length }} Records</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th style="width: 110px;">Seq ID</th>
+                        <th style="width: 110px;">Date</th>
+                        <th style="width: 70px;" class="text-center">Session</th>
+                        <th style="width: 100px;">Type</th>
+                        <th>Activity</th>
+                        <th style="width: 60px;" class="text-center">Qty</th>
+                        <th style="width: 110px;" class="text-end">Amount ($)</th>
+                        <th>Name / Payee</th>
+                        <th style="width: 90px;" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in transactions %}
+                    <tr>
+                        <td class="fw-semibold text-muted small">{{ row['seq_id'] }}</td>
+                        <td class="fw-medium">{{ row['txn_date'] }}</td>
+                        <td class="text-center"><span class="badge bg-light text-dark border">{{ row['am_pm'] }}</span></td>
+                        <td>
+                            {% if row['txn_type'] == 'Income' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Income</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Expense</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark">{{ row['activity'] }}</td>
+                        <td class="text-center">{{ row['quantity'] }}</td>
+                        <td class="text-end fw-bold">${{ "%.2f"|format(row['amount']) }}</td>
+                        <td class="text-secondary small">{{ row['name'] or '—' }}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-primary py-0 px-2" 
+                                    onclick="editDailyTxn('{{ row['seq_id'] }}', '{{ row['txn_date'] }}', '{{ row['am_pm'] }}', '{{ row['txn_type'] }}', '{{ row['activity'] }}', {{ row['quantity'] }}, {{ row['amount'] }}, '{{ row['name'] or '' }}', '{{ row['notes'] or '' }}')"
+                                    title="Edit Record">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">No daily transactions recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set today's date into the date input automatically
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('txn_date').value = today;
+    });
+
+    function togglePanel1() {
+        const panel1 = document.getElementById('panel1');
+        const btn = document.getElementById('togglePanel1Btn');
+        
+        if (panel1.style.display === 'none') {
+            panel1.style.display = 'block';
+            btn.innerHTML = '<i class="fa-solid fa-eye-slash me-1"></i> Hide Panel 1 (Entry Form)';
+            btn.classList.replace('btn-outline-success', 'btn-outline-secondary');
+        } else {
+            panel1.style.display = 'none';
+            btn.innerHTML = '<i class="fa-solid fa-eye me-1"></i> Show Panel 1 (Entry Form)';
+            btn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+        }
+    }
+
+    function editDailyTxn(seqId, txnDate, amPm, txnType, activity, quantity, amount, name, notes) {
+        const panel1 = document.getElementById('panel1');
+        const btn = document.getElementById('togglePanel1Btn');
+
+        panel1.style.display = 'block';
+        btn.innerHTML = '<i class="fa-solid fa-eye-slash me-1"></i> Hide Panel 1 (Entry Form)';
+        btn.classList.replace('btn-outline-success', 'btn-outline-secondary');
+
+        document.getElementById('seq_id').value = seqId;
+        document.getElementById('txn_date').value = txnDate;
+        document.getElementById('am_pm').value = amPm;
+        document.getElementById('txn_type').value = txnType;
+        document.getElementById('activity').value = activity;
+        document.getElementById('quantity').value = quantity;
+        document.getElementById('amount').value = amount;
+        document.getElementById('name').value = name;
+        document.getElementById('notes').value = notes;
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('seq_id').value = '';
+        document.getElementById('txn_date').value = today;
+        document.getElementById('am_pm').value = 'AM';
+        document.getElementById('txn_type').value = 'Income';
+        document.getElementById('activity').value = '';
+        document.getElementById('quantity').value = '1';
+        document.getElementById('amount').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('notes').value = '';
+    }
+</script>
+
+{% endblock %}

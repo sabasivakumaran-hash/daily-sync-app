@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Ganesh Temple Society of BC — Daily Sync</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* Global Background */
+        body {
+            background-color: #e2e8f0;
+        }
+
+        /* App Page Wrapper - Maximized Real Estate */
+        .app-wrapper {
+            width: 100%;
+            max-width: 100%;
+            padding: 0.75em 1%;
+        }
+
+        /* Unified Sage Green Theme (#88a78e) for Navbar AND Footer */
+        .temple-theme-bg {
+            background-color: #88a78e !important; 
+            border-top: 1px solid #729177;
+            border-bottom: 1px solid #729177;
+            position: relative;
+            z-index: 1000;
+        }
+
+        /* Navigation Links Styling */
+        .temple-navbar .nav-link {
+            color: #0f172a !important;
+            background-color: rgba(255, 255, 255, 0.4);
+            font-weight: 700;
+            padding: 0.5em 1.2em !important;
+            border-radius: 0.35em;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+        }
+        
+        .temple-navbar .nav-link:hover {
+            color: #ffffff !important;
+            background-color: #4a6650 !important;
+            border-color: #3f5844;
+        }
+        
+        .temple-navbar .nav-link.active {
+            color: #ffffff !important;
+            background-color: #2d4233 !important;
+            border-color: #1e2e23;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .temple-navbar .nav-link.disabled {
+            color: #475569 !important;
+            background-color: rgba(255, 255, 255, 0.2);
+            opacity: 0.6;
+            border-color: transparent;
+            cursor: not-allowed;
+        }
+
+        /* Dropdown Styling Fixes */
+        .dropdown-menu {
+            z-index: 1050 !important;
+            border-radius: 0.35em;
+        }
+
+        /* Expanded Content Card Frame */
+        .content-card {
+            background: #ffffff;
+            border-radius: 0.5em;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5em 1.25%;
+            border: 1px solid #cbd5e1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header-box {
+            border-radius: 0.5em 0.5em 0 0;
+            border: 1px solid #cbd5e1;
+            border-bottom: none;
+            padding: 1em 1.25%;
+        }
+
+        .footer-box {
+            border-radius: 0 0 0.5em 0.5em;
+            border: 1px solid #729177;
+            padding: 0.75em 1.25%;
+        }
+    </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+    <div class="app-wrapper d-flex flex-column flex-grow-1">
+
+        <!-- HEADER BANNER -->
+        <header class="bg-white shadow-sm header-box">
+            <div class="text-center">
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center gap-3">
+                    <img src="{{ url_for('static', filename='images/cropped_circle_image.png') }}" 
+                         alt="Sri Ganesh Temple Logo" 
+                         class="img-fluid rounded-circle shadow-sm" 
+                         style="width: 80px; height: 80px; object-fit: cover;">
+                    <div>
+                        <h1 class="h3 fw-bold text-dark mb-1">Sri Ganesh Temple Society of British Columbia</h1>
+                        <p class="text-secondary fw-semibold mb-0 fs-5">Income Expense Application</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- UNIFIED SAGE GREEN NAV BAR -->
+        <nav class="navbar navbar-expand-md temple-theme-bg shadow-sm py-2">
+            <div class="w-100 px-2">
+                <button class="navbar-toggler mx-auto" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+                    <span class="navbar-toggler-icon"></span> Menu
+                </button>
+                <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
+                    
+                    <!-- LEFT / OPERATIONAL TABS -->
+                    <ul class="navbar-nav temple-navbar gap-2 py-1">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' or request.path == '/daily_activity' %}active{% endif %}" 
+                               href="{{ url_for('daily_activity_page') }}">
+                                <i class="fa-solid fa-pen-to-square me-1"></i> Daily Activity
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" href="#">
+                                <i class="fa-solid fa-table me-1"></i> Master Detail
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" href="#">
+                                <i class="fa-solid fa-chart-line me-1"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link disabled" href="#">
+                                <i class="fa-solid fa-file-invoice me-1"></i> Reports
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- RIGHT / ADMINISTRATIVE MAINTENANCE DROPDOWN -->
+                    <ul class="navbar-nav temple-navbar gap-2 py-1">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.path == '/activity_lookup' %}active{% endif %}" 
+                               href="#" id="maintenanceDropdown" role="button" onclick="toggleMaintenanceMenu(event)">
+                                <i class="fa-solid fa-gears me-1"></i> Maintenance
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow mt-1" id="maintenanceMenu" aria-labelledby="maintenanceDropdown">
+                                <li>
+                                    <a class="dropdown-item fw-bold {% if request.path == '/activity_lookup' %}active bg-success text-white{% endif %}" 
+                                       href="{{ url_for('activity_lookup_page') }}">
+                                        <i class="fa-solid fa-list-check me-2"></i> Activity Lookup
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <span class="dropdown-item text-muted disabled small">
+                                        <i class="fa-solid fa-plus-circle me-2"></i> Future Modules...
+                                    </span>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="my-2 flex-grow-1">
+            <div class="content-card">
+                <!-- FLASH MESSAGES / ALERT BANNER -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                {% block content %}
+                <p class="text-muted mb-0">Select a page from the menu above to get started.</p>
+                {% endblock %}
+            </div>
+        </main>
+
+        <!-- UNIFIED SAGE GREEN FOOTER -->
+        <footer class="temple-theme-bg text-center fw-bold small footer-box" style="color: #0f172a;">
+            <div>
+                &copy; 2026 Sri Ganesh Temple Society of British Columbia. All rights reserved.
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/bootstrap.bundle.min.js"></script>
+
+    <!-- Reliable Dropdown Toggle Script -->
+    <script>
+        function toggleMaintenanceMenu(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const menu = document.getElementById('maintenanceMenu');
+            menu.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking anywhere outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('maintenanceMenu');
+            const toggleBtn = document.getElementById('maintenanceDropdown');
+            if (menu && !toggleBtn.contains(event.target) && !menu.contains(event.target)) {
+                menu.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>

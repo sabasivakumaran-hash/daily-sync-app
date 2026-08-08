@@ -9,28 +9,64 @@
     </h4>
 </div>
 
-<!-- PANEL 1: ENTRY & EDIT FORM (HIDDEN BY DEFAULT - PENDING PANEL 1 DISCUSSIONS) -->
+<!-- PANEL 1: ENTRY & EDIT FORM (HIDDEN BY DEFAULT) -->
 <div id="panel1" class="card shadow-sm border mb-4" style="display: none;">
     <div class="card-header bg-light fw-bold text-dark d-flex align-items-center">
         <i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Activity Form (Add / Edit)
     </div>
     <div class="card-body">
+
+        {% if categories|length == 0 %}
+        <!-- HELPFUL WARNING IF NO CATEGORIES EXIST -->
+        <div class="alert alert-warning border-warning d-flex align-items-center justify-content-between mb-3" role="alert">
+            <div>
+                <i class="fa-solid fa-circle-exclamation me-2 fs-5"></i>
+                <strong>No Active Categories Found!</strong> You must create at least one active Category before adding an Activity.
+            </div>
+            <a href="{{ url_for('category_lookup_page') }}" class="btn btn-sm btn-warning text-dark fw-bold">
+                <i class="fa-solid fa-plus me-1"></i> Add Category Now
+            </a>
+        </div>
+        {% endif %}
+
         <form action="{{ url_for('save_activity') }}" method="POST" class="row g-3" onsubmit="hidePanel1()">
             <input type="hidden" name="activity_id" id="activity_id" value="">
-
-            <div class="col-md-3">
-                <label for="category_id" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-                <select class="form-select" id="category_id" name="category_id" required>
-                    <option value="" disabled selected>-- Select Category --</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat['id'] }}">{{ cat['category_name'] }}</option>
-                    {% endfor %}
-                </select>
-            </div>
 
             <div class="col-md-4">
                 <label for="activity_name" class="form-label fw-semibold">Activity Name <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="activity_name" name="activity_name" placeholder="e.g., Archana" required>
+            </div>
+
+            <div class="col-md-3">
+                <label for="category_id" class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
+                <select class="form-select" id="category_id" name="category_id" required {% if categories|length == 0 %}disabled{% endif %}>
+                    {% if categories|length == 0 %}
+                        <option value="" disabled selected>-- No Categories Available --</option>
+                    {% else %}
+                        <option value="" disabled selected>-- Select Category --</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat['id'] }}">{{ cat['category_name'] }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="default_amount" class="form-label fw-semibold">Default Amount ($)</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="default_amount" name="default_amount" value="1.00" required>
+            </div>
+
+            <div class="col-md-3">
+                <label for="txn_type" class="form-label fw-semibold">Type</label>
+                <select class="form-select" id="txn_type" name="txn_type">
+                    <option value="Income" selected>Income</option>
+                    <option value="Expense">Expense</option>
+                </select>
+            </div>
+
+            <div class="col-md-9">
+                <label for="description" class="form-label fw-semibold">Description</label>
+                <input type="text" class="form-control" id="description" name="description" placeholder="Brief details about this activity item">
             </div>
 
             <div class="col-md-3">
@@ -41,16 +77,11 @@
                 </select>
             </div>
 
-            <div class="col-md-12">
-                <label for="description" class="form-label fw-semibold">Description</label>
-                <input type="text" class="form-control" id="description" name="description" placeholder="Brief details about this activity category">
-            </div>
-
             <div class="col-12 text-end mt-3">
                 <button type="button" class="btn btn-secondary btn-sm me-2" onclick="cancelForm()">
                     <i class="fa-solid fa-xmark me-1"></i> Cancel
                 </button>
-                <button type="submit" class="btn btn-success btn-sm px-4 fw-semibold">
+                <button type="submit" class="btn btn-success btn-sm px-4 fw-semibold" {% if categories|length == 0 %}disabled{% endif %}>
                     <i class="fa-solid fa-floppy-disk me-1"></i> Save
                 </button>
             </div>
@@ -77,7 +108,8 @@
                         <th>Activity Name</th>
                         <th>Description</th>
                         <th style="width: 180px;">Category Name</th>
-                        <th style="width: 120px;" class="text-center">Type</th>
+                        <th style="width: 120px;" class="text-end pe-3">Default Amt</th>
+                        <th style="width: 110px;" class="text-center">Type</th>
                         <th style="width: 110px;" class="text-center">Status</th>
                         <th style="width: 120px;" class="text-center">Action</th>
                     </tr>
@@ -89,11 +121,14 @@
                         <td class="text-secondary small">{{ item['description'] or '—' }}</td>
                         <td>
                             <span class="badge bg-secondary-subtle text-dark border px-2 py-1">
-                                {{ item['category_name'] or 'Unassigned' }}
+                                {{ item['category_name'] }}
                             </span>
                         </td>
+                        <td class="text-end pe-3 fw-semibold text-dark">
+                            ${{ "%.2f"|format(item['default_amount']) }}
+                        </td>
                         <td class="text-center fw-semibold text-secondary">
-                            {{ item['txn_type'] or 'Income' }}
+                            {{ item['txn_type'] }}
                         </td>
                         <td class="text-center">
                             {% if item['is_active'] == 1 %}
@@ -104,7 +139,7 @@
                         </td>
                         <td class="text-center">
                             <button class="btn btn-sm btn-outline-primary py-0 px-2" 
-                                    onclick="editActivity({{ item['id'] }}, {{ item['category_id'] or 'null' }}, '{{ item['activity_name'] }}', '{{ item['description'] or '' }}', {{ item['is_active'] }})"
+                                    onclick="editActivity({{ item['id'] }}, {{ item['category_id'] }}, '{{ item['activity_name'] }}', '{{ item['description'] or '' }}', {{ item['default_amount'] or 1.00 }}, '{{ item['txn_type'] or 'Income' }}', {{ item['is_active'] }})"
                                     title="Edit Record">
                                 <i class="fa-solid fa-pen-to-square"></i> Edit
                             </button>
@@ -112,7 +147,10 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No activity records found in database.</td>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-folder-open mb-2 fa-2x d-block text-secondary"></i>
+                            No activity records found in database. Click <strong>+ Add</strong> above to create one.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -142,13 +180,15 @@
         hidePanel1();
     }
 
-    function editActivity(id, categoryId, name, description, isActive) {
+    function editActivity(id, categoryId, name, description, defaultAmount, txnType, isActive) {
         document.getElementById('panel1').style.display = 'block';
 
         document.getElementById('activity_id').value = id;
-        document.getElementById('category_id').value = categoryId ? categoryId : '';
+        document.getElementById('category_id').value = categoryId;
         document.getElementById('activity_name').value = name;
         document.getElementById('description').value = description;
+        document.getElementById('default_amount').value = defaultAmount ? parseFloat(defaultAmount).toFixed(2) : '1.00';
+        document.getElementById('txn_type').value = txnType ? txnType : 'Income';
         document.getElementById('is_active').value = isActive;
         
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -159,6 +199,8 @@
         document.getElementById('category_id').value = '';
         document.getElementById('activity_name').value = '';
         document.getElementById('description').value = '';
+        document.getElementById('default_amount').value = '1.00';
+        document.getElementById('txn_type').value = 'Income';
         document.getElementById('is_active').value = '1';
     }
 </script>

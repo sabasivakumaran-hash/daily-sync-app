@@ -5,32 +5,22 @@
 <!-- PAGE TITLE -->
 <div class="mb-4 d-flex justify-content-between align-items-center border-bottom pb-2">
     <h4 class="fw-bold text-dark mb-0">
-        <i class="fa-solid fa-list-check me-2 text-success"></i>Activity Lookup Master
+        <i class="fa-solid fa-layer-group me-2 text-success"></i>Category Lookup Master
     </h4>
 </div>
 
-<!-- PANEL 1: ENTRY & EDIT FORM (HIDDEN BY DEFAULT - PENDING PANEL 1 DISCUSSIONS) -->
+<!-- PANEL 1: ENTRY & EDIT FORM (HIDDEN BY DEFAULT) -->
 <div id="panel1" class="card shadow-sm border mb-4" style="display: none;">
     <div class="card-header bg-light fw-bold text-dark d-flex align-items-center">
-        <i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Activity Form (Add / Edit)
+        <i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Category Form (Add / Edit)
     </div>
     <div class="card-body">
-        <form action="{{ url_for('save_activity') }}" method="POST" class="row g-3" onsubmit="hidePanel1()">
-            <input type="hidden" name="activity_id" id="activity_id" value="">
+        <form action="{{ url_for('save_category') }}" method="POST" class="row g-3" onsubmit="hidePanel1()">
+            <input type="hidden" name="category_id" id="category_id" value="">
 
-            <div class="col-md-3">
-                <label for="category_id" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-                <select class="form-select" id="category_id" name="category_id" required>
-                    <option value="" disabled selected>-- Select Category --</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat['id'] }}">{{ cat['category_name'] }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-md-4">
-                <label for="activity_name" class="form-label fw-semibold">Activity Name <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="activity_name" name="activity_name" placeholder="e.g., Archana" required>
+            <div class="col-md-6">
+                <label for="category_name" class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="category_name" name="category_name" placeholder="e.g., POOJA" required>
             </div>
 
             <div class="col-md-3">
@@ -43,7 +33,7 @@
 
             <div class="col-md-12">
                 <label for="description" class="form-label fw-semibold">Description</label>
-                <input type="text" class="form-control" id="description" name="description" placeholder="Brief details about this activity category">
+                <input type="text" class="form-control" id="description" name="description" placeholder="Brief details about this category">
             </div>
 
             <div class="col-12 text-end mt-3">
@@ -62,8 +52,8 @@
 <div id="panel2" class="card shadow-sm border">
     <div class="card-header bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
         <div>
-            <i class="fa-solid fa-table me-2 text-success"></i> Activity Lookup Records
-            <span class="badge bg-secondary ms-2">{{ activities|length }} Records</span>
+            <i class="fa-solid fa-table me-2 text-success"></i> Category Records
+            <span class="badge bg-secondary ms-2">{{ categories|length }} Records</span>
         </div>
         <button id="togglePanel1Btn" class="btn btn-sm btn-success fw-semibold" onclick="togglePanel1()">
             <i class="fa-solid fa-plus me-1"></i> Add
@@ -74,27 +64,17 @@
             <table class="table table-hover table-striped align-middle mb-0">
                 <thead class="table-light border-bottom">
                     <tr>
-                        <th>Activity Name</th>
+                        <th>Category Name</th>
                         <th>Description</th>
-                        <th style="width: 180px;">Category Name</th>
-                        <th style="width: 120px;" class="text-center">Type</th>
-                        <th style="width: 110px;" class="text-center">Status</th>
+                        <th style="width: 120px;" class="text-center">Status</th>
                         <th style="width: 120px;" class="text-center">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in activities %}
+                    {% for item in categories %}
                     <tr>
-                        <td class="fw-bold text-dark">{{ item['activity_name'] }}</td>
+                        <td class="fw-bold text-dark">{{ item['category_name'] }}</td>
                         <td class="text-secondary small">{{ item['description'] or '—' }}</td>
-                        <td>
-                            <span class="badge bg-secondary-subtle text-dark border px-2 py-1">
-                                {{ item['category_name'] or 'Unassigned' }}
-                            </span>
-                        </td>
-                        <td class="text-center fw-semibold text-secondary">
-                            {{ item['txn_type'] or 'Income' }}
-                        </td>
                         <td class="text-center">
                             {% if item['is_active'] == 1 %}
                                 <span class="badge bg-success">Active</span>
@@ -104,7 +84,7 @@
                         </td>
                         <td class="text-center">
                             <button class="btn btn-sm btn-outline-primary py-0 px-2" 
-                                    onclick="editActivity({{ item['id'] }}, {{ item['category_id'] or 'null' }}, '{{ item['activity_name'] }}', '{{ item['description'] or '' }}', {{ item['is_active'] }})"
+                                    onclick="editCategory({{ item['id'] }}, '{{ item['category_name'] }}', '{{ item['description'] or '' }}', {{ item['is_active'] }})"
                                     title="Edit Record">
                                 <i class="fa-solid fa-pen-to-square"></i> Edit
                             </button>
@@ -112,7 +92,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No activity records found in database.</td>
+                        <td colspan="4" class="text-center text-muted py-4">No category records found in database.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -142,22 +122,18 @@
         hidePanel1();
     }
 
-    function editActivity(id, categoryId, name, description, isActive) {
+    function editCategory(id, name, description, isActive) {
         document.getElementById('panel1').style.display = 'block';
-
-        document.getElementById('activity_id').value = id;
-        document.getElementById('category_id').value = categoryId ? categoryId : '';
-        document.getElementById('activity_name').value = name;
+        document.getElementById('category_id').value = id;
+        document.getElementById('category_name').value = name;
         document.getElementById('description').value = description;
         document.getElementById('is_active').value = isActive;
-        
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function resetForm() {
-        document.getElementById('activity_id').value = '';
         document.getElementById('category_id').value = '';
-        document.getElementById('activity_name').value = '';
+        document.getElementById('category_name').value = '';
         document.getElementById('description').value = '';
         document.getElementById('is_active').value = '1';
     }

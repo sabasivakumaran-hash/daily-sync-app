@@ -1,6 +1,21 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block panel %}
-<h2 class="border-bottom pb-2 mb-4 text-primary"><i class="fa-solid fa-chart-line me-2"></i>Dashboard</h2>
-<p class="text-muted">Dashboard metrics and summary charts will go here.</p>
+{% block content %}
+
+<div class="mb-4 d-flex justify-content-between align-items-center border-bottom pb-2">
+    <h4 class="fw-bold text-dark mb-0">
+        <i class="fa-solid fa-chart-line me-2 text-success"></i>Executive Dashboard
+    </h4>
+</div>
+
+<div class="card shadow-sm border text-center py-5 my-4">
+    <div class="card-body">
+        <i class="fa-solid fa-chart-pie fa-4x text-info mb-3"></i>
+        <h3 class="fw-bold text-dark">Analytics Dashboard — Under Construction</h3>
+        <p class="text-secondary col-md-8 mx-auto">
+            Real-time visual analytics, daily income/expense summaries, and category distribution charts will be integrated here after operational transactions are active.
+        </p>
+    </div>
+</div>
+
 {% endblock %}

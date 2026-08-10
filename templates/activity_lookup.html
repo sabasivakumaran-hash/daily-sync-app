@@ -1,208 +1,204 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
-
-<!-- PAGE TITLE -->
-<div class="mb-4 d-flex justify-content-between align-items-center border-bottom pb-2">
-    <h4 class="fw-bold text-dark mb-0">
-        <i class="fa-solid fa-list-check me-2 text-success"></i>Activity Lookup Master
-    </h4>
-</div>
-
-<!-- PANEL 1: ENTRY & EDIT FORM (HIDDEN BY DEFAULT) -->
-<div id="panel1" class="card shadow-sm border mb-4" style="display: none;">
-    <div class="card-header bg-light fw-bold text-dark d-flex align-items-center">
-        <i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Activity Form (Add / Edit)
-    </div>
-    <div class="card-body">
-
-        {% if categories|length == 0 %}
-        <!-- HELPFUL WARNING IF NO CATEGORIES EXIST -->
-        <div class="alert alert-warning border-warning d-flex align-items-center justify-content-between mb-3" role="alert">
-            <div>
-                <i class="fa-solid fa-circle-exclamation me-2 fs-5"></i>
-                <strong>No Active Categories Found!</strong> You must create at least one active Category before adding an Activity.
+<div class="row g-4">
+    <!-- PANEL 1: ADD / EDIT ACTIVITY FORM (HIDDEN BY DEFAULT AT TOP) -->
+    <div class="col-12" id="panelFormContainer" style="display: none;">
+        <div class="card card-sage shadow-sm mb-2">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold text-dark" id="formTitle">
+                    <i class="fa-solid fa-plus-circle me-2 text-success"></i>Add Activity
+                </h5>
+                <button type="button" class="btn-close" onclick="closeForm()" aria-label="Close"></button>
             </div>
-            <a href="{{ url_for('category_lookup_page') }}" class="btn btn-sm btn-warning text-dark fw-bold">
-                <i class="fa-solid fa-plus me-1"></i> Add Category Now
-            </a>
+            <div class="card-body p-4">
+                <form id="activityForm" method="POST" action="{{ url_for('activity_lookup_save') }}">
+                    <input type="hidden" id="activity_lookup_id" name="activity_lookup_id" value="">
+
+                    <div class="row g-3">
+                        <!-- 1. ACTIVITY NAME (PRIMARY DRIVER FIRST) -->
+                        <div class="col-md-4">
+                            <label for="activity_name" class="form-label fw-semibold text-secondary">
+                                Activity Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="activity_name" name="activity_name" placeholder="e.g. Special Archana" required>
+                        </div>
+
+                        <!-- 2. CATEGORY (ROLLUP) -->
+                        <div class="col-md-3">
+                            <label for="category_lookup_id" class="form-label fw-semibold text-secondary">
+                                Category (Rollup) <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="category_lookup_id" name="category_lookup_id" required>
+                                <option value="" disabled selected>-- Select Category --</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.category_lookup_id }}">{{ cat.category_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- 3. DEFAULT AMOUNT ($) -->
+                        <div class="col-md-2">
+                            <label for="default_amount" class="form-label fw-semibold text-secondary">Default Amt ($)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="default_amount" name="default_amount" placeholder="0.00">
+                        </div>
+
+                        <!-- 4. TXN TYPE -->
+                        <div class="col-md-2">
+                            <label for="txn_type" class="form-label fw-semibold text-secondary">
+                                Txn Type <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="txn_type" name="txn_type" required>
+                                <option value="INCOME" selected>Income</option>
+                                <option value="EXPENSE">Expense</option>
+                            </select>
+                        </div>
+
+                        <!-- 5. STATUS -->
+                        <div class="col-md-1">
+                            <label for="is_active" class="form-label fw-semibold text-secondary">Status</label>
+                            <select class="form-select" id="is_active" name="is_active">
+                                <option value="1" selected>Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary px-4 fw-semibold" onclick="closeForm()">Cancel</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold shadow-sm" id="btnSave">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-        {% endif %}
+    </div>
 
-        <form action="{{ url_for('save_activity') }}" method="POST" class="row g-3" onsubmit="hidePanel1()">
-            <input type="hidden" name="activity_id" id="activity_id" value="">
-
-            <div class="col-md-4">
-                <label for="activity_name" class="form-label fw-semibold">Activity Name <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="activity_name" name="activity_name" placeholder="e.g., Archana" required>
-            </div>
-
-            <div class="col-md-3">
-                <label for="category_id" class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
-                <select class="form-select" id="category_id" name="category_id" required {% if categories|length == 0 %}disabled{% endif %}>
-                    {% if categories|length == 0 %}
-                        <option value="" disabled selected>-- No Categories Available --</option>
-                    {% else %}
-                        <option value="" disabled selected>-- Select Category --</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat['id'] }}">{{ cat['category_name'] }}</option>
-                        {% endfor %}
-                    {% endif %}
-                </select>
-            </div>
-
-            <div class="col-md-2">
-                <label for="default_amount" class="form-label fw-semibold">Default Amount ($)</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="default_amount" name="default_amount" value="1.00" required>
-            </div>
-
-            <div class="col-md-3">
-                <label for="txn_type" class="form-label fw-semibold">Type</label>
-                <select class="form-select" id="txn_type" name="txn_type">
-                    <option value="Income" selected>Income</option>
-                    <option value="Expense">Expense</option>
-                </select>
-            </div>
-
-            <div class="col-md-9">
-                <label for="description" class="form-label fw-semibold">Description</label>
-                <input type="text" class="form-control" id="description" name="description" placeholder="Brief details about this activity item">
-            </div>
-
-            <div class="col-md-3">
-                <label for="is_active" class="form-label fw-semibold">Status</label>
-                <select class="form-select" id="is_active" name="is_active">
-                    <option value="1" selected>Active</option>
-                    <option value="0">Inactive</option>
-                </select>
-            </div>
-
-            <div class="col-12 text-end mt-3">
-                <button type="button" class="btn btn-secondary btn-sm me-2" onclick="cancelForm()">
-                    <i class="fa-solid fa-xmark me-1"></i> Cancel
+    <!-- PANEL 2: ACTIVITY MASTER TABLE -->
+    <div class="col-12">
+        <div class="card card-sage shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <h5 class="card-title mb-0 fw-bold text-dark">
+                        <i class="fa-solid fa-list-check me-2 text-success"></i>Activity Master Records
+                    </h5>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
+                        {{ activities|length }} Total
+                    </span>
+                </div>
+                <!-- ADD ACTIVITY BUTTON -->
+                <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="openAddForm()">
+                    <i class="fa-solid fa-plus me-1"></i> Add Activity
                 </button>
-                <button type="submit" class="btn btn-success btn-sm px-4 fw-semibold" {% if categories|length == 0 %}disabled{% endif %}>
-                    <i class="fa-solid fa-floppy-disk me-1"></i> Save
-                </button>
             </div>
-        </form>
-    </div>
-</div>
-
-<!-- PANEL 2: DATA RECORDS TABLE -->
-<div id="panel2" class="card shadow-sm border">
-    <div class="card-header bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
-        <div>
-            <i class="fa-solid fa-table me-2 text-success"></i> Activity Lookup Records
-            <span class="badge bg-secondary ms-2">{{ activities|length }} Records</span>
-        </div>
-        <button id="togglePanel1Btn" class="btn btn-sm btn-success fw-semibold" onclick="togglePanel1()">
-            <i class="fa-solid fa-plus me-1"></i> Add
-        </button>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-striped align-middle mb-0">
-                <thead class="table-light border-bottom">
-                    <tr>
-                        <th>Activity Name</th>
-                        <th>Description</th>
-                        <th style="width: 180px;">Category Name</th>
-                        <th style="width: 120px;" class="text-end pe-3">Default Amt</th>
-                        <th style="width: 110px;" class="text-center">Type</th>
-                        <th style="width: 110px;" class="text-center">Status</th>
-                        <th style="width: 120px;" class="text-center">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in activities %}
-                    <tr>
-                        <td class="fw-bold text-dark">{{ item['activity_name'] }}</td>
-                        <td class="text-secondary small">{{ item['description'] or '—' }}</td>
-                        <td>
-                            <span class="badge bg-secondary-subtle text-dark border px-2 py-1">
-                                {{ item['category_name'] }}
-                            </span>
-                        </td>
-                        <td class="text-end pe-3 fw-semibold text-dark">
-                            ${{ "%.2f"|format(item['default_amount']) }}
-                        </td>
-                        <td class="text-center fw-semibold text-secondary">
-                            {{ item['txn_type'] }}
-                        </td>
-                        <td class="text-center">
-                            {% if item['is_active'] == 1 %}
-                                <span class="badge bg-success">Active</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Inactive</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-sm btn-outline-primary py-0 px-2" 
-                                    onclick="editActivity({{ item['id'] }}, {{ item['category_id'] }}, '{{ item['activity_name'] }}', '{{ item['description'] or '' }}', {{ item['default_amount'] or 1.00 }}, '{{ item['txn_type'] or 'Income' }}', {{ item['is_active'] }})"
-                                    title="Edit Record">
-                                <i class="fa-solid fa-pen-to-square"></i> Edit
-                            </button>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
-                            <i class="fa-solid fa-folder-open mb-2 fa-2x d-block text-secondary"></i>
-                            No activity records found in database. Click <strong>+ Add</strong> above to create one.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="card-body p-4">
+                <div class="table-responsive">
+                    <table id="activityTable" class="table table-hover align-middle w-100">
+                        <thead class="table-light border-bottom">
+                            <tr>
+                                <th scope="col" class="fw-bold">Activity Name</th>
+                                <th scope="col" class="fw-bold">Category</th>
+                                <th scope="col" class="fw-bold text-end">Default Amt</th>
+                                <th scope="col" class="fw-bold text-center">Type</th>
+                                <th scope="col" class="fw-bold text-center">Status</th>
+                                <th scope="col" class="fw-bold text-center" style="width: 100px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for act in activities %}
+                            <tr>
+                                <td class="text-dark">{{ act.activity_name }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ act.category_name }}</span></td>
+                                <td class="text-end">
+                                    {% if act.default_amount %}${{ "%.2f"|format(act.default_amount) }}{% else %}<span class="text-muted">$0.00</span>{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if act.txn_type == 'INCOME' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">INCOME</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">EXPENSE</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if act.is_active == 1 %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success edit-act-btn" 
+                                            data-id="{{ act.activity_lookup_id }}"
+                                            data-name="{{ act.activity_name }}"
+                                            data-category="{{ act.category_lookup_id }}"
+                                            data-amount="{{ act.default_amount or 0.00 }}"
+                                            data-type="{{ act.txn_type }}"
+                                            data-active="{{ act.is_active }}"
+                                            title="Edit Activity">
+                                        <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-    function togglePanel1() {
-        const panel1 = document.getElementById('panel1');
-        if (panel1.style.display === 'none' || panel1.style.display === '') {
-            resetForm();
-            panel1.style.display = 'block';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-            panel1.style.display = 'none';
-        }
+    $(document).ready(function() {
+        $('#activityTable').DataTable({
+            "order": [[0, "asc"]],
+            "pageLength": 10,
+            "language": { "search": "_INPUT_", "searchPlaceholder": "Search activities..." }
+        });
+
+        $(document).on('click', '.edit-act-btn', function() {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            var category = $(this).data('category');
+            var amount = $(this).data('amount');
+            var type = $(this).data('type');
+            var active = $(this).data('active');
+
+            $('#formTitle').html('<i class="fa-solid fa-pen-to-square me-2 text-success"></i>Edit Activity');
+            $('#btnSave').html('<i class="fa-solid fa-check me-1"></i> Save');
+
+            $('#activity_lookup_id').val(id);
+            $('#activity_name').val(name);
+            $('#category_lookup_id').val(category);
+            $('#default_amount').val(amount);
+            $('#txn_type').val(type);
+            $('#is_active').val(active);
+
+            $('#panelFormContainer').slideDown('fast');
+            $('html, body').animate({ scrollTop: $('#panelFormContainer').offset().top - 80 }, 'fast');
+        });
+    });
+
+    function openAddForm() {
+        $('#formTitle').html('<i class="fa-solid fa-plus-circle me-2 text-success"></i>Add Activity');
+        $('#btnSave').html('<i class="fa-solid fa-floppy-disk me-1"></i> Save');
+
+        $('#activity_lookup_id').val('');
+        $('#activityForm')[0].reset();
+
+        $('#panelFormContainer').slideDown('fast');
+        $('html, body').animate({ scrollTop: $('#panelFormContainer').offset().top - 80 }, 'fast');
     }
 
-    function hidePanel1() {
-        document.getElementById('panel1').style.display = 'none';
-    }
-
-    function cancelForm() {
-        resetForm();
-        hidePanel1();
-    }
-
-    function editActivity(id, categoryId, name, description, defaultAmount, txnType, isActive) {
-        document.getElementById('panel1').style.display = 'block';
-
-        document.getElementById('activity_id').value = id;
-        document.getElementById('category_id').value = categoryId;
-        document.getElementById('activity_name').value = name;
-        document.getElementById('description').value = description;
-        document.getElementById('default_amount').value = defaultAmount ? parseFloat(defaultAmount).toFixed(2) : '1.00';
-        document.getElementById('txn_type').value = txnType ? txnType : 'Income';
-        document.getElementById('is_active').value = isActive;
-        
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function resetForm() {
-        document.getElementById('activity_id').value = '';
-        document.getElementById('category_id').value = '';
-        document.getElementById('activity_name').value = '';
-        document.getElementById('description').value = '';
-        document.getElementById('default_amount').value = '1.00';
-        document.getElementById('txn_type').value = 'Income';
-        document.getElementById('is_active').value = '1';
+    function closeForm() {
+        $('#panelFormContainer').slideUp('fast', function() {
+            $('#activity_lookup_id').val('');
+            $('#activityForm')[0].reset();
+        });
     }
 </script>
-
 {% endblock %}

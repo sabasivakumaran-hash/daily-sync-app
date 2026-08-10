@@ -1,21 +1,13 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
-
-<div class="mb-4 d-flex justify-content-between align-items-center border-bottom pb-2">
-    <h4 class="fw-bold text-dark mb-0">
-        <i class="fa-solid fa-chart-line me-2 text-success"></i>Executive Dashboard
-    </h4>
-</div>
-
-<div class="card shadow-sm border text-center py-5 my-4">
-    <div class="card-body">
-        <i class="fa-solid fa-chart-pie fa-4x text-info mb-3"></i>
-        <h3 class="fw-bold text-dark">Analytics Dashboard — Under Construction</h3>
-        <p class="text-secondary col-md-8 mx-auto">
-            Real-time visual analytics, daily income/expense summaries, and category distribution charts will be integrated here after operational transactions are active.
-        </p>
+<div class="row">
+    <div class="col-12 text-center py-5">
+        <div class="card card-sage shadow-sm p-5">
+            <i class="fa-solid fa-chart-line fa-4x text-success mb-3"></i>
+            <h3 class="fw-bold text-dark">Executive Dashboard</h3>
+            <p class="text-secondary">Visual summaries, financial graphs, and monthly income vs. expense metrics will be displayed here.</p>
+        </div>
     </div>
 </div>
-
 {% endblock %}

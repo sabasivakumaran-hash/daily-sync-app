@@ -1,254 +1,193 @@
-import sqlite3
 import os
-import uuid
+import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, flash
 
 app = Flask(__name__)
-app.secret_key = 'temple_secret_key_bc_2026'
+app.secret_key = "temple_sync_secret_key"
 
-DB_NAME = "temple_sync.db"
+DATABASE = 'temple_sync.db'
 
-def get_db_connection():
-    db_path = os.path.join(os.path.dirname(__file__), DB_NAME)
-    conn = sqlite3.connect(db_path, timeout=10)
-    conn.execute("PRAGMA foreign_keys = ON;")
+def get_db():
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
-
-# ---------------------------------------------------------------------------
-# 1. DAILY ACTIVITY & DASHBOARD / REPORTS (NAVIGATION PAGES)
-# ---------------------------------------------------------------------------
+# ==========================================
+# 1. DAILY ACTIVITY MODULE (HOME)
+# ==========================================
 @app.route('/')
-@app.route('/daily_activity')
+@app.route('/daily_activity', methods=['GET'])
 def daily_activity_page():
-    conn = get_db_connection()
-    try:
-        # Strict Filter: Only show active activities belonging to active categories
-        lookups = conn.execute('''
-            SELECT a.activity_name, a.default_amount, a.txn_type
-            FROM activity_lookup a
-            INNER JOIN category_lookup c ON a.category_id = c.id
-            WHERE a.is_active = 1 AND c.is_active = 1
-            ORDER BY a.activity_name ASC
-        ''').fetchall()
-        
-        # Check if daily_activities table exists before querying
-        table_check = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_activities'"
-        ).fetchone()
-
-        if table_check:
-            transactions = conn.execute(
-                'SELECT seq_id, txn_date, am_pm, activity, quantity, txn_type, amount, name, notes FROM daily_activities ORDER BY updated_ts DESC'
-            ).fetchall()
-        else:
-            transactions = []
-    finally:
-        conn.close()
+    conn = get_db()
     
-    return render_template('daily_activity.html', lookups=lookups, transactions=transactions)
+    # Active activities for dropdown
+    act_rows = conn.execute("""
+        SELECT * FROM activity_lookup 
+        WHERE is_active = 1 
+        ORDER BY activity_name ASC
+    """).fetchall()
+    activities = [dict(r) for r in act_rows]
+
+    # Unique devotee names for auto-suggest list
+    name_rows = conn.execute("""
+        SELECT DISTINCT person_name 
+        FROM daily_activity 
+        WHERE person_name IS NOT NULL AND person_name != '' 
+        ORDER BY person_name ASC
+    """).fetchall()
+    existing_names = [r['person_name'] for r in name_rows]
+
+    # Daily activity records sorted by updated_ts descending
+    txn_rows = conn.execute("""
+        SELECT t.*, a.activity_name, c.category_name 
+        FROM daily_activity t
+        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
+        LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
+        ORDER BY t.updated_ts DESC, t.created_ts DESC
+    """).fetchall()
+    transactions = [dict(r) for r in txn_rows]
+    
+    conn.close()
+    
+    return render_template(
+        'daily_activity.html', 
+        activities=activities, 
+        existing_names=existing_names, 
+        transactions=transactions
+    )
+
+@app.route('/daily_activity/save', methods=['POST'])
+def daily_activity_save():
+    daily_activity_id = request.form.get('daily_activity_id')
+    txn_date = request.form.get('txn_date')
+    session_type = request.form.get('session_type', 'AM')
+    activity_lookup_id = request.form.get('activity_lookup_id')
+    person_name = request.form.get('person_name', '').strip()
+    unit_price = request.form.get('unit_price') or 0.00
+    quantity = request.form.get('quantity') or 1
+    total_amount = request.form.get('total_amount') or 0.00
+    payment_mode = request.form.get('payment_mode')
+    remarks = request.form.get('remarks', '').strip()
+    is_active = request.form.get('is_active', 1)
+
+    conn = get_db()
+    if daily_activity_id:
+        conn.execute("""
+            UPDATE daily_activity 
+            SET txn_date = ?, session_type = ?, activity_lookup_id = ?, person_name = ?, 
+                unit_price = ?, quantity = ?, total_amount = ?, payment_mode = ?, remarks = ?, is_active = ?,
+                updated_ts = CURRENT_TIMESTAMP
+            WHERE daily_activity_id = ?
+        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, payment_mode, remarks, is_active, daily_activity_id))
+        flash('Daily Activity updated successfully!', 'success')
+    else:
+        conn.execute("""
+            INSERT INTO daily_activity (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, payment_mode, remarks, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, payment_mode, remarks, is_active))
+        flash('Daily Activity recorded successfully!', 'success')
+    
+    conn.commit()
+    conn.close()
+    return redirect(url_for('daily_activity_page'))
 
 
-@app.route('/dashboard')
-def dashboard_page():
-    return render_template('dashboard.html')
-
-
-@app.route('/reports')
-def reports_page():
-    return render_template('reports.html')
-
-
-# ---------------------------------------------------------------------------
-# 2. CATEGORY LOOKUP MASTER ROUTES (MAINTENANCE)
-# ---------------------------------------------------------------------------
-@app.route('/category_lookup')
+# ==========================================
+# 2. CATEGORY LOOKUP MODULE
+# ==========================================
+@app.route('/category_lookup', methods=['GET'])
 def category_lookup_page():
-    conn = get_db_connection()
-    try:
-        categories = conn.execute(
-            'SELECT id, category_name, description, is_active FROM category_lookup ORDER BY is_active DESC, category_name ASC'
-        ).fetchall()
-    finally:
-        conn.close()
-    
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM category_lookup ORDER BY category_name ASC").fetchall()
+    categories = [dict(r) for r in rows]
+    conn.close()
     return render_template('category_lookup.html', categories=categories)
 
-
 @app.route('/category_lookup/save', methods=['POST'])
-def save_category():
-    category_id = request.form.get('category_id')
+def category_lookup_save():
+    category_lookup_id = request.form.get('category_lookup_id')
     category_name = request.form.get('category_name', '').strip()
-    description = request.form.get('description', '').strip()
-    is_active = int(request.form.get('is_active', 1))
+    is_active = request.form.get('is_active', 1)
 
-    if not category_name:
-        flash("Category Name is required!", "danger")
-        return redirect(url_for('category_lookup_page'))
-
-    conn = get_db_connection()
-    try:
-        if category_id:  # UPDATE
-            if is_active == 0:
-                cat_row = conn.execute('SELECT category_name FROM category_lookup WHERE id = ?', (category_id,)).fetchone()
-                if cat_row:
-                    current_cat_name = cat_row['category_name']
-                    active_count = conn.execute(
-                        'SELECT COUNT(*) FROM activity_lookup WHERE category_id = ? AND is_active = 1',
-                        (category_id,)
-                    ).fetchone()[0]
-
-                    if active_count > 0:
-                        flash(f"Cannot deactivate Category '{current_cat_name}': It is linked to {active_count} active Activity item(s). Please reassign or set those activities to Inactive first.", "danger")
-                        return redirect(url_for('category_lookup_page'))
-
-            dup_check = conn.execute(
-                'SELECT id FROM category_lookup WHERE LOWER(category_name) = LOWER(?) AND id != ?',
-                (category_name, category_id)
-            ).fetchone()
-
-            if dup_check:
-                flash(f"Cannot update: A Category named '{category_name}' already exists!", "danger")
-            else:
-                conn.execute('''
-                    UPDATE category_lookup 
-                    SET category_name = ?, description = ?, is_active = ?
-                    WHERE id = ?
-                ''', (category_name, description, is_active, category_id))
-                conn.commit()
-
-        else:  # INSERT
-            dup_check = conn.execute(
-                'SELECT id FROM category_lookup WHERE LOWER(category_name) = LOWER(?)',
-                (category_name,)
-            ).fetchone()
-
-            if dup_check:
-                flash(f"Cannot add: A Category named '{category_name}' already exists!", "danger")
-            else:
-                conn.execute('''
-                    INSERT INTO category_lookup (category_name, description, is_active)
-                    VALUES (?, ?, ?)
-                ''', (category_name, description, is_active))
-                conn.commit()
-
-    except Exception as e:
-        conn.rollback()
-        flash(f"An unexpected error occurred: {str(e)}", "danger")
-    finally:
-        conn.close()
-
+    conn = get_db()
+    if category_lookup_id:
+        conn.execute("""
+            UPDATE category_lookup 
+            SET category_name = ?, is_active = ?, updated_ts = CURRENT_TIMESTAMP
+            WHERE category_lookup_id = ?
+        """, (category_name, is_active, category_lookup_id))
+        flash('Category updated successfully!', 'success')
+    else:
+        conn.execute("""
+            INSERT INTO category_lookup (category_name, is_active) 
+            VALUES (?, ?)
+        """, (category_name, is_active))
+        flash('Category created successfully!', 'success')
+    
+    conn.commit()
+    conn.close()
     return redirect(url_for('category_lookup_page'))
 
 
-# ---------------------------------------------------------------------------
-# 3. ACTIVITY LOOKUP MASTER ROUTES (MAINTENANCE)
-# ---------------------------------------------------------------------------
-@app.route('/activity_lookup')
+# ==========================================
+# 3. ACTIVITY LOOKUP MODULE
+# ==========================================
+@app.route('/activity_lookup', methods=['GET'])
 def activity_lookup_page():
-    conn = get_db_connection()
-    try:
-        activities = conn.execute('''
-            SELECT 
-                a.id, 
-                a.category_id, 
-                c.category_name, 
-                a.activity_name, 
-                a.description, 
-                a.default_amount,
-                a.txn_type,
-                a.is_active 
-            FROM activity_lookup a
-            INNER JOIN category_lookup c ON a.category_id = c.id
-            ORDER BY a.is_active DESC, a.activity_name ASC
-        ''').fetchall()
-        
-        categories = conn.execute(
-            'SELECT id, category_name FROM category_lookup WHERE is_active = 1 ORDER BY category_name ASC'
-        ).fetchall()
-    finally:
-        conn.close()
-    
-    return render_template('activity_lookup.html', activities=activities, categories=categories)
+    conn = get_db()
+    cat_rows = conn.execute("SELECT * FROM category_lookup WHERE is_active = 1 ORDER BY category_name ASC").fetchall()
+    categories = [dict(r) for r in cat_rows]
 
+    act_rows = conn.execute("""
+        SELECT a.*, c.category_name 
+        FROM activity_lookup a
+        LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
+        ORDER BY a.activity_name ASC
+    """).fetchall()
+    activities = [dict(r) for r in act_rows]
+    conn.close()
+
+    return render_template('activity_lookup.html', categories=categories, activities=activities)
 
 @app.route('/activity_lookup/save', methods=['POST'])
-def save_activity():
-    activity_id = request.form.get('activity_id')
-    category_id = request.form.get('category_id')
+def activity_lookup_save():
+    activity_lookup_id = request.form.get('activity_lookup_id')
     activity_name = request.form.get('activity_name', '').strip()
-    default_amount = request.form.get('default_amount', 1.00)
-    txn_type = request.form.get('txn_type', 'Income')
-    description = request.form.get('description', '').strip()
-    is_active = int(request.form.get('is_active', 1))
+    category_lookup_id = request.form.get('category_lookup_id')
+    default_amount = request.form.get('default_amount') or 0.00
+    txn_type = request.form.get('txn_type')
+    is_active = request.form.get('is_active', 1)
 
-    if not activity_name:
-        flash("Activity Name is required!", "danger")
-        return redirect(url_for('activity_lookup_page'))
-
-    if not category_id:
-        flash("Please select a valid Category from the list.", "danger")
-        return redirect(url_for('activity_lookup_page'))
-
-    conn = get_db_connection()
-    try:
-        cat_check = conn.execute(
-            'SELECT is_active FROM category_lookup WHERE id = ?', (category_id,)
-        ).fetchone()
-
-        if not cat_check:
-            flash("Selected Category does not exist in the system!", "danger")
-            return redirect(url_for('activity_lookup_page'))
-        elif cat_check['is_active'] == 0:
-            flash("Cannot link activity: Selected Category is Inactive!", "danger")
-            return redirect(url_for('activity_lookup_page'))
-
-        try:
-            default_amount = float(default_amount)
-            if default_amount < 0:
-                default_amount = 0.00
-        except ValueError:
-            default_amount = 1.00
-
-        if activity_id:  # UPDATE
-            dup_check = conn.execute(
-                'SELECT id FROM activity_lookup WHERE LOWER(activity_name) = LOWER(?) AND id != ?',
-                (activity_name, activity_id)
-            ).fetchone()
-
-            if dup_check:
-                flash(f"Cannot update: An Activity named '{activity_name}' already exists!", "danger")
-            else:
-                conn.execute('''
-                    UPDATE activity_lookup 
-                    SET category_id = ?, activity_name = ?, default_amount = ?, txn_type = ?, description = ?, is_active = ?
-                    WHERE id = ?
-                ''', (category_id, activity_name, default_amount, txn_type, description, is_active, activity_id))
-                conn.commit()
-
-        else:  # INSERT
-            dup_check = conn.execute(
-                'SELECT id FROM activity_lookup WHERE LOWER(activity_name) = LOWER(?)',
-                (activity_name,)
-            ).fetchone()
-
-            if dup_check:
-                flash(f"Cannot add: An Activity named '{activity_name}' already exists!", "danger")
-            else:
-                conn.execute('''
-                    INSERT INTO activity_lookup (category_id, activity_name, default_amount, txn_type, description, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (category_id, activity_name, default_amount, txn_type, description, is_active))
-                conn.commit()
-
-    except Exception as e:
-        conn.rollback()
-        flash(f"An unexpected error occurred: {str(e)}", "danger")
-    finally:
-        conn.close()
+    conn = get_db()
+    if activity_lookup_id:
+        conn.execute("""
+            UPDATE activity_lookup 
+            SET activity_name = ?, category_lookup_id = ?, default_amount = ?, txn_type = ?, is_active = ?, updated_ts = CURRENT_TIMESTAMP
+            WHERE activity_lookup_id = ?
+        """, (activity_name, category_lookup_id, default_amount, txn_type, is_active, activity_lookup_id))
+        flash('Activity updated successfully!', 'success')
+    else:
+        conn.execute("""
+            INSERT INTO activity_lookup (activity_name, category_lookup_id, default_amount, txn_type, is_active)
+            VALUES (?, ?, ?, ?, ?)
+        """, (activity_name, category_lookup_id, default_amount, txn_type, is_active))
+        flash('Activity created successfully!', 'success')
     
+    conn.commit()
+    conn.close()
     return redirect(url_for('activity_lookup_page'))
+
+
+# ==========================================
+# 4. DASHBOARD & REPORTS MODULES
+# ==========================================
+@app.route('/dashboard', methods=['GET'])
+def dashboard_page():
+    return render_template('dashboard.html')
+
+@app.route('/reports', methods=['GET'])
+def reports_page():
+    return render_template('reports.html')
 
 
 if __name__ == '__main__':

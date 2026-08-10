@@ -1,0 +1,96 @@
+/* ==========================================
+   1. GLOBAL & BASE LAYOUT (OPTION B: MEDIUM EMERALD)
+   ========================================== */
+body {
+    background-color: #f8faf8;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Medium Emerald Header Banner */
+.bg-temple-header {
+    background-color: #2d6a4f;
+    color: #ffffff;
+    border-bottom: 0.25rem solid #40916c;
+}
+
+/* Soft Emerald Accent Sub-bar */
+.bg-temple-accent {
+    background-color: #e8f5e9;
+    border-bottom: 0.1rem solid #c8e6c9;
+}
+
+/* Footer */
+.bg-temple-footer {
+    background-color: #2d6a4f;
+    color: #ffffff;
+    border-top: 0.2rem solid #40916c;
+}
+
+/* ==========================================
+   2. REUSABLE COMPONENTS & BUTTONS
+   ========================================== */
+.btn-temple-maintenance {
+    color: #1b4332;
+    border: 0.1rem solid #a3b18a;
+    background-color: #ffffff;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-temple-maintenance:hover,
+.btn-temple-maintenance:focus,
+.btn-temple-maintenance.show,
+.btn-temple-maintenance:active {
+    color: #ffffff !important;
+    background-color: #2d6a4f !important;
+    border-color: #1b4332 !important;
+    box-shadow: 0 0.2rem 0.4rem rgba(0,0,0,0.12);
+}
+
+.card-sage {
+    border: 0.1rem solid #e0e0e0;
+    border-top: 0.25rem solid #2d6a4f;
+}
+
+.nav-link.active {
+    font-weight: 700 !important;
+    color: #1b4332 !important;
+}
+
+/* ==========================================
+   3. DATATABLES GRID DEFENSE FIX
+   ========================================== */
+.table-responsive {
+    width: 100% !important;
+    overflow-x: auto;
+}
+
+div.dataTables_wrapper {
+    width: 100% !important;
+}
+
+table.dataTable {
+    width: 100% !important;
+}
+
+/* ==========================================
+   4. GLOBAL TABLE TYPOGRAPHY & HEADER OVERRIDES
+   ========================================== */
+
+/* Data Rows: Regular Weight (400) with Slightly Larger Font Size */
+table.dataTable tbody td,
+.table tbody td {
+    font-weight: 400 !important;
+    font-size: 0.95rem !important;
+}
+
+/* Header Labels: Slightly Larger, Bold & Distinct */
+table.dataTable thead th,
+.table thead th {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #2d6a4f !important; /* Deep emerald header accent */
+}

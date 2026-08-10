@@ -5,7 +5,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 app = Flask(__name__)
 app.secret_key = "temple_sync_secret_key"
 
-DATABASE = 'temple_sync.db'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'temple_sync.db')
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -43,7 +44,7 @@ def daily_activity_page():
         FROM daily_activity t
         LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
         LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-        ORDER BY t.updated_ts DESC, t.created_ts DESC
+        ORDER BY t.updated_ts DESC, t.updated_ts DESC
     """).fetchall()
     transactions = [dict(r) for r in txn_rows]
     

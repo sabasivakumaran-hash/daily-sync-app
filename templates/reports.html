@@ -106,8 +106,8 @@
                                     <th scope="col" class="fw-bold bg-light" style="width: 100px;">Total</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- INCOME SECTION -->
+                            <tbody class="border-top-0">
+                                <!-- INCOME SECTION HEADER -->
                                 <tr class="table-success border-top">
                                     <td colspan="14" class="fw-bold text-success text-uppercase">Income</td>
                                 </tr>
@@ -137,7 +137,10 @@
                                     <td class="text-end text-success fs-6">${{ "%.2f"|format(grand_total_income) }}</td>
                                 </tr>
 
-                                <!-- EXPENSES SECTION -->
+                                <!-- BLANK SPACING BETWEEN TOTAL INCOME AND EXPENSES -->
+                                <tr class="border-0"><td colspan="14" style="height: 1.25rem; background-color: #ffffff;"></td></tr>
+
+                                <!-- EXPENSES SECTION HEADER -->
                                 <tr class="table-danger border-top">
                                     <td colspan="14" class="fw-bold text-danger text-uppercase">Expenses</td>
                                 </tr>
@@ -166,6 +169,9 @@
                                     {% endfor %}
                                     <td class="text-end text-danger fs-6">${{ "%.2f"|format(grand_total_expense) }}</td>
                                 </tr>
+
+                                <!-- BLANK SPACING BETWEEN TOTAL EXPENSES AND NET SURPLUS -->
+                                <tr class="border-0"><td colspan="14" style="height: 1.25rem; background-color: #ffffff;"></td></tr>
 
                                 <!-- NET SURPLUS / DEFICIT ROW -->
                                 <tr class="fw-bold border-top border-bottom border-2 {% if net_grand_total >= 0 %}table-success-subtle{% else %}table-danger-subtle{% endif %}">

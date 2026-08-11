@@ -271,7 +271,7 @@ def reports_page():
 
     return render_template(
         'reports.html',
-        selected_report=selected_report,
+        selected_report=selected_report,  # <-- Ensure this line is present
         start_date=start_date,
         end_date=end_date,
         months_list=months_list,
@@ -284,7 +284,6 @@ def reports_page():
         net_totals=net_totals,
         net_grand_total=net_grand_total
     )
-
 
 if __name__ == '__main__':
     app.run(debug=True)

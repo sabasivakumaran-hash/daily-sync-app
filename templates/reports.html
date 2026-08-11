@@ -1,13 +1,224 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12 text-center py-5">
-        <div class="card card-sage shadow-sm p-5">
-            <i class="fa-solid fa-file-invoice-dollar fa-4x text-success mb-3"></i>
-            <h3 class="fw-bold text-dark">Financial Reports</h3>
-            <p class="text-secondary">Exportable transaction summaries, date range filters, and ledger statements will be generated here.</p>
+<div class="row g-3">
+    <!-- LEFT PANEL: CANNED REPORTS MENU -->
+    <div class="col-12 col-md-3 col-lg-3">
+        <div class="card card-sage shadow-sm h-100">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h6 class="card-title mb-0 fw-bold text-dark">
+                    <i class="fa-solid fa-folder-tree me-2 text-success"></i>Available Reports
+                </h6>
+            </div>
+            <div class="card-body p-2">
+                <div class="list-group list-group-flush gap-1">
+                    <a href="{{ url_for('reports_page', report_type='income_expense', start_date=start_date, end_date=end_date) }}" 
+                       class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'income_expense' %}active bg-success text-white{% else %}text-dark{% endif %}">
+                        <i class="fa-solid fa-table-cells me-2"></i>Income & Expense
+                    </a>
+                    <a href="{{ url_for('reports_page', report_type='activity_summary', start_date=start_date, end_date=end_date) }}" 
+                       class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'activity_summary' %}active bg-success text-white{% else %}text-dark{% endif %}">
+                        <i class="fa-solid fa-list-check me-2"></i>Activity Summary
+                    </a>
+                    <a href="{{ url_for('reports_page', report_type='devotee_history', start_date=start_date, end_date=end_date) }}" 
+                       class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'devotee_history' %}active bg-success text-white{% else %}text-dark{% endif %}">
+                        <i class="fa-solid fa-user-clock me-2"></i>Devotee History
+                    </a>
+                    <a href="{{ url_for('reports_page', report_type='session_summary', start_date=start_date, end_date=end_date) }}" 
+                       class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'session_summary' %}active bg-success text-white{% else %}text-dark{% endif %}">
+                        <i class="fa-solid fa-sun me-2"></i>Session (AM/PM)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANELS AREA -->
+    <div class="col-12 col-md-9 col-lg-9 d-flex flex-column gap-3">
+        
+        <!-- RIGHT PANEL 1: DATE FILTER CONTROLS -->
+        <div class="card card-sage shadow-sm">
+            <div class="card-body p-3">
+                <form method="GET" action="{{ url_for('reports_page') }}" class="row g-3 align-items-end">
+                    <input type="hidden" name="report_type" value="{{ selected_report }}">
+
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <label for="start_date" class="form-label fw-semibold text-secondary small mb-1">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}" required>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <label for="end_date" class="form-label fw-semibold text-secondary small mb-1">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}" required>
+                    </div>
+
+                    <div class="col-12 col-lg-4 d-flex justify-content-lg-end">
+                        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm w-100">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i> Generate Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL 2: REPORT DISPLAY & EXPORTS -->
+        <div class="card card-sage shadow-sm" id="reportStatement">
+            <div class="card-body p-4">
+                
+                <!-- EXPORT BUTTONS -->
+                <div class="d-flex justify-content-end gap-2 mb-3 pb-2 border-bottom">
+                    <button type="button" class="btn btn-sm btn-outline-success fw-semibold px-3" onclick="exportToExcel()">
+                        <i class="fa-solid fa-file-excel me-1"></i> Excel
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger fw-semibold px-3" onclick="exportToPDF()">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-dark fw-semibold px-3" onclick="window.print()">
+                        <i class="fa-solid fa-print me-1"></i> Print
+                    </button>
+                </div>
+
+                <!-- REPORT TITLE HEADER -->
+                <div class="text-center mb-4 border-bottom pb-3">
+                    <h3 class="fw-bold text-dark mb-1">SRI GANESH TEMPLE SOCIETY OF B.C.</h3>
+                    <p class="mb-0 text-secondary small fw-semibold">3525 Fraser Street, Vancouver, BC, V5V 4C5, CANADA | Tel. 604 879 3505</p>
+                    <p class="mb-1 text-secondary small fw-semibold">Email: sriganeshtemplevancouverbc@gmail.com</p>
+                    <div class="d-flex justify-content-center gap-4 small text-muted mt-1">
+                        <span><strong>Incorporation #:</strong> S39361</span>
+                        <span><strong>Charity #:</strong> 86957 1026 RR0001</span>
+                    </div>
+                    <h5 class="fw-bold text-success mt-3 mb-0 text-uppercase">
+                        {{ selected_report.replace('_', ' ') }} Statement
+                    </h5>
+                    <span class="badge bg-light text-dark border mt-1">Period: {{ start_date }} to {{ end_date }}</span>
+                </div>
+
+                <!-- TABLE CONTENT AREA -->
+                <div class="table-responsive">
+                    {% if selected_report == 'income_expense' %}
+                        <table class="table table-bordered align-middle text-nowrap small" id="statementTable">
+                            <thead class="table-light text-center border-bottom">
+                                <tr>
+                                    <th scope="col" class="text-start" style="min-width: 180px;">Category</th>
+                                    {% for m in months_list %}
+                                        <th scope="col" style="width: 75px;">{{ m }}</th>
+                                    {% endfor %}
+                                    <th scope="col" class="fw-bold bg-light" style="width: 100px;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- INCOME SECTION -->
+                                <tr class="table-success border-top">
+                                    <td colspan="14" class="fw-bold text-success text-uppercase">Income</td>
+                                </tr>
+                                {% for cat_name, m_values in income_matrix.items() %}
+                                <tr>
+                                    <td class="fw-semibold ps-3 text-dark">{{ cat_name }}</td>
+                                    {% set row_total = namespace(val=0.0) %}
+                                    {% for m in months_list %}
+                                        {% set amt = m_values[m] %}
+                                        {% set row_total.val = row_total.val + amt %}
+                                        <td class="text-end">{{ "$%.2f"|format(amt) if amt > 0 else "$0.00" }}</td>
+                                    {% endfor %}
+                                    <td class="text-end fw-bold text-dark bg-light">${{ "%.2f"|format(row_total.val) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="14" class="text-muted text-center py-2">No income records found for this period.</td>
+                                </tr>
+                                {% endfor %}
+
+                                <!-- TOTAL INCOME ROW -->
+                                <tr class="fw-bold table-success">
+                                    <td class="text-dark">Total Income</td>
+                                    {% for m in months_list %}
+                                        <td class="text-end">${{ "%.2f"|format(income_totals[m]) }}</td>
+                                    {% endfor %}
+                                    <td class="text-end text-success fs-6">${{ "%.2f"|format(grand_total_income) }}</td>
+                                </tr>
+
+                                <!-- EXPENSES SECTION -->
+                                <tr class="table-danger border-top">
+                                    <td colspan="14" class="fw-bold text-danger text-uppercase">Expenses</td>
+                                </tr>
+                                {% for cat_name, m_values in expense_matrix.items() %}
+                                <tr>
+                                    <td class="fw-semibold ps-3 text-dark">{{ cat_name }}</td>
+                                    {% set row_total = namespace(val=0.0) %}
+                                    {% for m in months_list %}
+                                        {% set amt = m_values[m] %}
+                                        {% set row_total.val = row_total.val + amt %}
+                                        <td class="text-end">{{ "$%.2f"|format(amt) if amt > 0 else "$0.00" }}</td>
+                                    {% endfor %}
+                                    <td class="text-end fw-bold text-dark bg-light">${{ "%.2f"|format(row_total.val) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="14" class="text-muted text-center py-2">No expense records found for this period.</td>
+                                </tr>
+                                {% endfor %}
+
+                                <!-- TOTAL EXPENSE ROW -->
+                                <tr class="fw-bold table-danger">
+                                    <td class="text-dark">Total Expenses</td>
+                                    {% for m in months_list %}
+                                        <td class="text-end">${{ "%.2f"|format(expense_totals[m]) }}</td>
+                                    {% endfor %}
+                                    <td class="text-end text-danger fs-6">${{ "%.2f"|format(grand_total_expense) }}</td>
+                                </tr>
+
+                                <!-- NET SURPLUS / DEFICIT ROW -->
+                                <tr class="fw-bold border-top border-bottom border-2 {% if net_grand_total >= 0 %}table-success-subtle{% else %}table-danger-subtle{% endif %}">
+                                    <td class="text-dark fs-6">Net Surplus / (Deficit)</td>
+                                    {% for m in months_list %}
+                                        <td class="text-end {% if net_totals[m] < 0 %}text-danger{% else %}text-success{% endif %}">
+                                            ${{ "%.2f"|format(net_totals[m]) }}
+                                        </td>
+                                    {% endfor %}
+                                    <td class="text-end fs-6 {% if net_grand_total < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        ${{ "%.2f"|format(net_grand_total) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fa-solid fa-chart-simple fa-3x text-secondary mb-3"></i>
+                            <h6 class="fw-bold text-dark">Report View Ready</h6>
+                            <p class="text-muted small">Select parameters above and click Generate Report to load this view.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+    function exportToExcel() {
+        var table = document.getElementById('statementTable');
+        if (!table) return;
+        var wb = XLSX.utils.table_to_book(table, { sheet: "Report_Statement" });
+        XLSX.writeFile(wb, "Temple_Sync_Report.xlsx");
+    }
+
+    function exportToPDF() {
+        var element = document.getElementById('reportStatement');
+        if (!element) return;
+        var opt = {
+            margin:       0.3,
+            filename:     'Temple_Sync_Report.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+        };
+        html2pdf().set(opt).from(element).save();
+    }
+</script>
 {% endblock %}

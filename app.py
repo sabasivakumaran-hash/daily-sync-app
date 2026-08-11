@@ -191,6 +191,7 @@ def activity_lookup_save():
     conn.close()
     return redirect(url_for('activity_lookup_page'))
 
+from datetime import datetime
 
 # ==========================================
 # 4. DASHBOARD & REPORTS MODULES
@@ -199,9 +200,90 @@ def activity_lookup_save():
 def dashboard_page():
     return render_template('dashboard.html')
 
-@app.route('/reports', methods=['GET'])
+@app.route('/reports', methods=['GET', 'POST'])
 def reports_page():
-    return render_template('reports.html')
+    # Read report type (defaults to 'income_expense')
+    selected_report = request.values.get('report_type', 'income_expense')
+    
+    # Calculate current year dynamically (CCYY)
+    current_year = datetime.now().year
+    default_start = f"{current_year}-01-01"
+    default_end = f"{current_year}-12-31"
+
+    # User-selectable Date Pickers (Defaults to Current Year Jan 1 -> Dec 31)
+    start_date = request.values.get('start_date', default_start)
+    end_date = request.values.get('end_date', default_end)
+
+    conn = get_db()
+
+    query = """
+        SELECT 
+            c.category_name,
+            t.entry_type,
+            t.txn_date,
+            t.total_amount
+        FROM daily_activity t
+        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
+        LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
+        WHERE t.txn_date BETWEEN ? AND ? AND t.is_active = 1
+        ORDER BY c.category_name ASC, t.txn_date ASC
+    """
+    rows = conn.execute(query, (start_date, end_date)).fetchall()
+    conn.close()
+
+    months_list = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    income_matrix = {}
+    expense_matrix = {}
+    
+    income_totals = {m: 0.0 for m in months_list}
+    expense_totals = {m: 0.0 for m in months_list}
+    
+    grand_total_income = 0.0
+    grand_total_expense = 0.0
+
+    for r in rows:
+        cat_name = r['category_name'] or 'Uncategorized'
+        entry_type = r['entry_type'] or ('EXPENSE' if (r['total_amount'] or 0) < 0 else 'INCOME')
+        amount = abs(r['total_amount'] or 0.0)
+        
+        if r['txn_date']:
+            dt = datetime.strptime(r['txn_date'], '%Y-%m-%d')
+            m_name = months_list[dt.month - 1]
+        else:
+            continue
+
+        if entry_type == 'INCOME':
+            if cat_name not in income_matrix:
+                income_matrix[cat_name] = {m: 0.0 for m in months_list}
+            income_matrix[cat_name][m_name] += amount
+            income_totals[m_name] += amount
+            grand_total_income += amount
+        else:
+            if cat_name not in expense_matrix:
+                expense_matrix[cat_name] = {m: 0.0 for m in months_list}
+            expense_matrix[cat_name][m_name] += amount
+            expense_totals[m_name] += amount
+            grand_total_expense += amount
+
+    net_totals = {m: income_totals[m] - expense_totals[m] for m in months_list}
+    net_grand_total = grand_total_income - grand_total_expense
+
+    return render_template(
+        'reports.html',
+        selected_report=selected_report,
+        start_date=start_date,
+        end_date=end_date,
+        months_list=months_list,
+        income_matrix=income_matrix,
+        expense_matrix=expense_matrix,
+        income_totals=income_totals,
+        expense_totals=expense_totals,
+        grand_total_income=grand_total_income,
+        grand_total_expense=grand_total_expense,
+        net_totals=net_totals,
+        net_grand_total=net_grand_total
+    )
 
 
 if __name__ == '__main__':

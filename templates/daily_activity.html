@@ -15,24 +15,26 @@
                 <form id="dailyForm" method="POST" action="{{ url_for('daily_activity_save') }}">
                     <input type="hidden" id="daily_activity_id" name="daily_activity_id" value="">
 
+                    <!-- OPTIMIZED FORM GRID -->
                     <div class="row g-3">
+                        <!-- === ROW 1: TRANSACTION ESSENTIALS === -->
                         <!-- 1. DATE -->
-                        <div class="col-md-2">
+                        <div class="col-12 col-sm-6 col-lg-2">
                             <label for="txn_date" class="form-label fw-semibold text-secondary">Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="txn_date" name="txn_date" required>
                         </div>
 
-                        <!-- 2. SESSION (AM / PM) -->
-                        <div class="col-md-1">
+                        <!-- 2. SESSION -->
+                        <div class="col-12 col-sm-6 col-lg-1">
                             <label for="session_type" class="form-label fw-semibold text-secondary">Session <span class="text-danger">*</span></label>
-                            <select class="form-select" id="session_type" name="session_type" required>
+                            <select class="form-select px-2" id="session_type" name="session_type" required>
                                 <option value="AM" selected>AM</option>
                                 <option value="PM">PM</option>
                             </select>
                         </div>
 
                         <!-- 3. ACTIVITY -->
-                        <div class="col-md-3">
+                        <div class="col-12 col-sm-6 col-lg-3">
                             <label for="activity_lookup_id" class="form-label fw-semibold text-secondary">Activity <span class="text-danger">*</span></label>
                             <select class="form-select" id="activity_lookup_id" name="activity_lookup_id" required>
                                 <option value="" disabled selected>-- Select Activity --</option>
@@ -44,8 +46,8 @@
                             </select>
                         </div>
 
-                        <!-- 4. NAME (AUTO-SUGGEST) -->
-                        <div class="col-md-3">
+                        <!-- 4. NAME -->
+                        <div class="col-12 col-sm-6 col-lg-4">
                             <label for="person_name" class="form-label fw-semibold text-secondary">Name</label>
                             <input type="text" 
                                    class="form-control" 
@@ -61,48 +63,47 @@
                             </datalist>
                         </div>
 
-                        <!-- 5. UNIT PRICE -->
-                        <div class="col-md-1">
-                            <label for="unit_price" class="form-label fw-semibold text-secondary">Unit Price ($)</label>
-                            <input type="number" step="0.01" min="0" class="form-control" id="unit_price" name="unit_price" placeholder="0.00">
-                        </div>
-
-                        <!-- 6. QUANTITY -->
-                        <div class="col-md-1">
-                            <label for="quantity" class="form-label fw-semibold text-secondary">Qty</label>
-                            <input type="number" min="1" value="1" class="form-control" id="quantity" name="quantity" required>
-                        </div>
-
-                        <!-- 7. TOTAL -->
-                        <div class="col-md-1">
-                            <label for="total_amount" class="form-label fw-semibold text-secondary">Total ($)</label>
-                            <input type="number" step="0.01" min="0" class="form-control fw-bold text-success fs-6" id="total_amount" name="total_amount" readonly>
-                        </div>
-
-                        <!-- 8. PAYMENT MODE -->
-                        <div class="col-md-2">
-                            <label for="payment_mode" class="form-label fw-semibold text-secondary">Payment Mode <span class="text-danger">*</span></label>
-                            <select class="form-select" id="payment_mode" name="payment_mode" required>
-                                <option value="CASH" selected>Cash</option>
-                                <option value="CHEQUE">Cheque</option>
-                                <option value="CARD">Card</option>
-                                <option value="E-TRANSFER">e-Transfer</option>
-                            </select>
-                        </div>
-
-                        <!-- 9. REMARKS (RECEIPT # & NOTES) -->
-                        <div class="col-md-8">
-                            <label for="remarks" class="form-label fw-semibold text-secondary">Remarks (Receipt # & Notes)</label>
-                            <input type="text" class="form-control" id="remarks" name="remarks" placeholder="e.g. Rec #1042 - Family Pooja">
-                        </div>
-
-                        <!-- 10. STATUS -->
-                        <div class="col-md-2">
+                        <!-- 5. STATUS -->
+                        <div class="col-12 col-sm-6 col-lg-2">
                             <label for="is_active" class="form-label fw-semibold text-secondary">Status</label>
                             <select class="form-select" id="is_active" name="is_active">
                                 <option value="1" selected>Active</option>
-                                <option value="0">Void / Inactive</option>
+                                <option value="0">Inactive</option>
                             </select>
+                        </div>
+
+                        <!-- === ROW 2: FINANCIAL CALCULATIONS & NOTES === -->
+                        <!-- 6. UNIT PRICE -->
+                        <div class="col-12 col-sm-6 col-lg-1">
+                            <label for="unit_price" class="form-label fw-semibold text-secondary">Price ($)</label>
+                            <input type="number" step="0.01" min="0" class="form-control px-2 text-center" id="unit_price" name="unit_price" placeholder="0.00">
+                        </div>
+
+                        <!-- 7. QUANTITY -->
+                        <div class="col-12 col-sm-6 col-lg-1">
+                            <label for="quantity" class="form-label fw-semibold text-secondary">Qty</label>
+                            <input type="number" min="1" value="1" class="form-control px-2 text-center" id="quantity" name="quantity" required>
+                        </div>
+
+                        <!-- 8. ENTRY TYPE -->
+                        <div class="col-12 col-sm-6 col-lg-2">
+                            <label for="entry_type" class="form-label fw-semibold text-secondary">Entry Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="entry_type" name="entry_type" required>
+                                <option value="INCOME" selected>Income</option>
+                                <option value="EXPENSE">Expense</option>
+                            </select>
+                        </div>
+
+                        <!-- 9. TOTAL -->
+                        <div class="col-12 col-sm-6 col-lg-2">
+                            <label for="total_amount" class="form-label fw-semibold text-secondary">Total ($)</label>
+                            <input type="number" step="0.01" class="form-control fw-bold text-success fs-6" id="total_amount" name="total_amount" readonly>
+                        </div>
+
+                        <!-- 10. REMARKS -->
+                        <div class="col-12 col-lg-6">
+                            <label for="remarks" class="form-label fw-semibold text-secondary">Remarks (Receipt # & Notes)</label>
+                            <input type="text" class="form-control" id="remarks" name="remarks" placeholder="e.g. Rec #1042 - Family Pooja">
                         </div>
                     </div>
 
@@ -117,13 +118,13 @@
         </div>
     </div>
 
-    <!-- PANEL 2: DAILY ACTIVITY TABLE -->
+    <!-- PANEL 2: DAILY ACTIVITY LIST TABLE -->
     <div class="col-12">
         <div class="card card-sage shadow-sm">
             <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-3">
                     <h5 class="card-title mb-0 fw-bold text-dark">
-                        <i class="fa-solid fa-calendar-day me-2 text-success"></i>Daily Activity
+                        <i class="fa-solid fa-calendar-day me-2 text-success"></i>Daily Activity List
                     </h5>
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
                         {{ transactions|length }} Total Records
@@ -144,8 +145,8 @@
                                 <th scope="col" class="fw-bold">Activity</th>
                                 <th scope="col" class="fw-bold">Name</th>
                                 <th scope="col" class="fw-bold text-center">Qty</th>
+                                <th scope="col" class="fw-bold text-center">Type</th>
                                 <th scope="col" class="fw-bold text-end">Total</th>
-                                <th scope="col" class="fw-bold text-center">Mode</th>
                                 <th scope="col" class="fw-bold">Remarks</th>
                                 <th scope="col" class="fw-bold text-center">Status</th>
                                 <th scope="col" class="d-none">Updated TS</th>
@@ -170,14 +171,22 @@
                                 <td class="text-dark">{{ txn.activity_name }}</td>
                                 <td class="text-dark">{{ txn.person_name or '-' }}</td>
                                 <td class="text-center">{{ txn.quantity }}</td>
-                                <td class="text-end text-success">${{ "%.2f"|format(txn.total_amount) }}</td>
-                                <td class="text-center"><span class="badge bg-light text-dark border">{{ txn.payment_mode }}</span></td>
+                                <td class="text-center">
+                                    {% if txn.entry_type == 'EXPENSE' or txn.total_amount < 0 %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expense</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Income</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold {% if txn.total_amount < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    ${{ "%.2f"|format(txn.total_amount) }}
+                                </td>
                                 <td class="text-muted small">{{ txn.remarks or '-' }}</td>
                                 <td class="text-center">
                                     {% if txn.is_active == 1 %}
                                         <span class="badge bg-success">Active</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Void</span>
+                                        <span class="badge bg-secondary">Inactive</span>
                                     {% endif %}
                                 </td>
                                 <!-- HIDDEN COLUMN FOR DATATABLES SORTING (COLUMN INDEX 9) -->
@@ -193,7 +202,7 @@
                                             data-price="{{ txn.unit_price }}"
                                             data-quantity="{{ txn.quantity }}"
                                             data-total="{{ txn.total_amount }}"
-                                            data-mode="{{ txn.payment_mode }}"
+                                            data-type="{{ txn.entry_type or ('EXPENSE' if txn.total_amount < 0 else 'INCOME') }}"
                                             data-remarks="{{ txn.remarks or '' }}"
                                             data-active="{{ txn.is_active }}"
                                             title="Edit Daily Activity">
@@ -231,15 +240,26 @@
             calculateTotal();
         });
 
-        // Auto-recalculate Total Amount
-        $('#unit_price, #quantity').on('input', function() {
+        // Auto-recalculate Total Amount on Input or Type Change
+        $('#unit_price, #quantity, #entry_type').on('input change', function() {
             calculateTotal();
         });
 
         function calculateTotal() {
             var price = parseFloat($('#unit_price').val()) || 0.00;
             var qty = parseInt($('#quantity').val()) || 1;
-            $('#total_amount').val((price * qty).toFixed(2));
+            var entryType = $('#entry_type').val();
+            
+            var multiplier = (entryType === 'EXPENSE') ? -1.00 : 1.00;
+            var total = Math.abs(price * qty) * multiplier;
+            
+            $('#total_amount').val(total.toFixed(2));
+
+            if (total < 0) {
+                $('#total_amount').removeClass('text-success').addClass('text-danger');
+            } else {
+                $('#total_amount').removeClass('text-danger').addClass('text-success');
+            }
         }
 
         // Edit Trigger
@@ -252,7 +272,7 @@
             var price = $(this).data('price');
             var qty = $(this).data('quantity');
             var total = $(this).data('total');
-            var mode = $(this).data('mode');
+            var type = $(this).data('type');
             var remarks = $(this).data('remarks');
             var active = $(this).data('active');
 
@@ -266,10 +286,16 @@
             $('#person_name').val(name);
             $('#unit_price').val(price);
             $('#quantity').val(qty);
+            $('#entry_type').val(type);
             $('#total_amount').val(total);
-            $('#payment_mode').val(mode);
             $('#remarks').val(remarks);
             $('#is_active').val(active);
+
+            if (parseFloat(total) < 0) {
+                $('#total_amount').removeClass('text-success').addClass('text-danger');
+            } else {
+                $('#total_amount').removeClass('text-danger').addClass('text-success');
+            }
 
             $('#panelFormContainer').slideDown('fast');
             $('html, body').animate({ scrollTop: $('#panelFormContainer').offset().top - 80 }, 'fast');
@@ -286,6 +312,9 @@
         var today = new Date().toISOString().split('T')[0];
         $('#txn_date').val(today);
         $('#session_type').val('AM');
+        $('#entry_type').val('INCOME');
+        $('#is_active').val('1');
+        $('#total_amount').removeClass('text-danger').addClass('text-success');
 
         $('#panelFormContainer').slideDown('fast');
         $('html, body').animate({ scrollTop: $('#panelFormContainer').offset().top - 80 }, 'fast');
@@ -299,6 +328,9 @@
             var today = new Date().toISOString().split('T')[0];
             $('#txn_date').val(today);
             $('#session_type').val('AM');
+            $('#entry_type').val('INCOME');
+            $('#is_active').val('1');
+            $('#total_amount').removeClass('text-danger').addClass('text-success');
         });
     }
 </script>

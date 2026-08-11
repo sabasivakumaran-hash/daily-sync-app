@@ -44,7 +44,7 @@ def daily_activity_page():
         FROM daily_activity t
         LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
         LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-        ORDER BY t.updated_ts DESC, t.updated_ts DESC
+        ORDER BY t.updated_ts DESC
     """).fetchall()
     transactions = [dict(r) for r in txn_rows]
     
@@ -64,10 +64,23 @@ def daily_activity_save():
     session_type = request.form.get('session_type', 'AM')
     activity_lookup_id = request.form.get('activity_lookup_id')
     person_name = request.form.get('person_name', '').strip()
-    unit_price = request.form.get('unit_price') or 0.00
-    quantity = request.form.get('quantity') or 1
-    total_amount = request.form.get('total_amount') or 0.00
-    payment_mode = request.form.get('payment_mode')
+    
+    try:
+        unit_price = float(request.form.get('unit_price') or 0.00)
+    except ValueError:
+        unit_price = 0.00
+        
+    try:
+        quantity = int(request.form.get('quantity') or 1)
+    except ValueError:
+        quantity = 1
+        
+    entry_type = request.form.get('entry_type', 'INCOME')
+    
+    # Calculate Total with Expense Multiplier (-1.0)
+    multiplier = -1.0 if entry_type == 'EXPENSE' else 1.0
+    total_amount = abs(unit_price * quantity) * multiplier
+
     remarks = request.form.get('remarks', '').strip()
     is_active = request.form.get('is_active', 1)
 
@@ -76,16 +89,16 @@ def daily_activity_save():
         conn.execute("""
             UPDATE daily_activity 
             SET txn_date = ?, session_type = ?, activity_lookup_id = ?, person_name = ?, 
-                unit_price = ?, quantity = ?, total_amount = ?, payment_mode = ?, remarks = ?, is_active = ?,
+                unit_price = ?, quantity = ?, entry_type = ?, total_amount = ?, remarks = ?, is_active = ?,
                 updated_ts = CURRENT_TIMESTAMP
             WHERE daily_activity_id = ?
-        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, payment_mode, remarks, is_active, daily_activity_id))
+        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, entry_type, total_amount, remarks, is_active, daily_activity_id))
         flash('Daily Activity updated successfully!', 'success')
     else:
         conn.execute("""
-            INSERT INTO daily_activity (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, payment_mode, remarks, is_active)
+            INSERT INTO daily_activity (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, entry_type, total_amount, remarks, is_active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, payment_mode, remarks, is_active))
+        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, entry_type, total_amount, remarks, is_active))
         flash('Daily Activity recorded successfully!', 'success')
     
     conn.commit()

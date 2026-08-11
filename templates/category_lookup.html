@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="row g-4">
-    <!-- PANEL 1: ADD / EDIT CATEGORY FORM (HIDDEN BY DEFAULT AT TOP) -->
+    <!-- PANEL 1: RECORD CATEGORY FORM (HIDDEN BY DEFAULT) -->
     <div class="col-12" id="panelFormContainer" style="display: none;">
         <div class="card card-sage shadow-sm mb-2">
             <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
@@ -15,14 +15,13 @@
                 <form id="categoryForm" method="POST" action="{{ url_for('category_lookup_save') }}">
                     <input type="hidden" id="category_lookup_id" name="category_lookup_id" value="">
 
-                    <div class="row g-3">
-                        <div class="col-md-8">
-                            <label for="category_name" class="form-label fw-semibold text-secondary">
-                                Category Name <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control" id="category_name" name="category_name" placeholder="e.g. Pooja Services" required>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-md-8 col-lg-8">
+                            <label for="category_name" class="form-label fw-semibold text-secondary">Category Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="category_name" name="category_name" required placeholder="e.g. Pooja Services">
                         </div>
-                        <div class="col-md-4">
+
+                        <div class="col-12 col-md-4 col-lg-4">
                             <label for="is_active" class="form-label fw-semibold text-secondary">Status</label>
                             <select class="form-select" id="is_active" name="is_active">
                                 <option value="1" selected>Active</option>
@@ -42,19 +41,18 @@
         </div>
     </div>
 
-    <!-- PANEL 2: CATEGORY MASTER LIST TABLE -->
+    <!-- PANEL 2: CATEGORY LIST TABLE -->
     <div class="col-12">
         <div class="card card-sage shadow-sm">
             <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-3">
                     <h5 class="card-title mb-0 fw-bold text-dark">
-                        <i class="fa-solid fa-layer-group me-2 text-success"></i>Category Master Records
+                        <i class="fa-solid fa-layer-group me-2 text-success"></i>Category List
                     </h5>
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
-                        {{ categories|length }} Total
+                        {{ categories|length }} Total Categories
                     </span>
                 </div>
-                <!-- ADD CATEGORY BUTTON -->
                 <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="openAddForm()">
                     <i class="fa-solid fa-plus me-1"></i> Add Category
                 </button>
@@ -66,13 +64,13 @@
                             <tr>
                                 <th scope="col" class="fw-bold">Category Name</th>
                                 <th scope="col" class="fw-bold text-center">Status</th>
-                                <th scope="col" class="fw-bold text-center" style="width: 100px;">Action</th>
+                                <th scope="col" class="fw-bold text-center" style="width: 90px;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for cat in categories %}
                             <tr>
-                                <td class="text-dark">{{ cat.category_name }}</td>
+                                <td class="text-dark fw-medium">{{ cat.category_name }}</td>
                                 <td class="text-center">
                                     {% if cat.is_active == 1 %}
                                         <span class="badge bg-success">Active</span>
@@ -105,7 +103,6 @@
 <script>
     $(document).ready(function() {
         $('#categoryTable').DataTable({
-            "order": [[0, "asc"]],
             "pageLength": 10,
             "language": { "search": "_INPUT_", "searchPlaceholder": "Search categories..." }
         });
@@ -133,6 +130,7 @@
 
         $('#category_lookup_id').val('');
         $('#categoryForm')[0].reset();
+        $('#is_active').val('1');
 
         $('#panelFormContainer').slideDown('fast');
         $('html, body').animate({ scrollTop: $('#panelFormContainer').offset().top - 80 }, 'fast');
@@ -142,6 +140,7 @@
         $('#panelFormContainer').slideUp('fast', function() {
             $('#category_lookup_id').val('');
             $('#categoryForm')[0].reset();
+            $('#is_active').val('1');
         });
     }
 </script>

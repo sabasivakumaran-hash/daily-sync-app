@@ -90,7 +90,13 @@
                     <h5 class="fw-bold text-success mt-3 mb-0 text-uppercase">
                         {{ selected_report.replace('_', ' ') }} Statement
                     </h5>
-                    <span class="badge bg-light text-dark border mt-1">Period: {{ start_date }} to {{ end_date }}</span>
+                    <!-- NEW CODE: Formats YYYY-MM-DD into MM-DD-CCYY -->
+                        {% set start_formatted = start_date.split('-')[1] + '-' + start_date.split('-')[2] + '-' + start_date.split('-')[0] if start_date and '-' in start_date else start_date %}
+                        {% set end_formatted = end_date.split('-')[1] + '-' + end_date.split('-')[2] + '-' + end_date.split('-')[0] if end_date and '-' in end_date else end_date %}
+
+                        <span class="badge bg-light text-dark border mt-1 fw-bold fs-6 px-3 py-1">
+                            Period: {{ start_formatted }} to {{ end_formatted }}
+                        </span>
                 </div>
 
                 <!-- TABLE CONTENT AREA -->

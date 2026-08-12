@@ -1,13 +1,137 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12 text-center py-5">
-        <div class="card card-sage shadow-sm p-5">
-            <i class="fa-solid fa-chart-line fa-4x text-success mb-3"></i>
-            <h3 class="fw-bold text-dark">Executive Dashboard</h3>
-            <p class="text-secondary">Visual summaries, financial graphs, and monthly income vs. expense metrics will be displayed here.</p>
+<div class="container py-4">
+    <!-- Header & Year Filter -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-speedometer2 me-2"></i>Financial Dashboard</h2>
+        <form method="GET" action="{{ url_for('dashboard_page') }}" class="d-flex align-items-center">
+            <label for="year" class="me-2 fw-bold">Select Year:</label>
+            <select name="year" id="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                {% for yr in available_years %}
+                    <option value="{{ yr }}" {% if yr == selected_year %}selected{% endif %}>{{ yr }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-1 text-white-50">Total Income ({{ selected_year }})</h6>
+                    <h3 class="card-title mb-0">${{ "%.2f"|format(total_income) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-1 text-white-50">Total Expenses ({{ selected_year }})</h6>
+                    <h3 class="card-title mb-0">${{ "%.2f"|format(total_expense) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm {% if net_surplus >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %} text-white">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-1 {% if net_surplus >= 0 %}text-white-50{% else %}text-dark-50{% endif %}">Net Surplus ({{ selected_year }})</h6>
+                    <h3 class="card-title mb-0">${{ "%.2f"|format(net_surplus) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4">
+        <!-- Monthly Income vs Expense Bar Chart -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold py-3">
+                    Monthly Income vs. Expenses ({{ selected_year }})
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Distribution Pie Chart -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold py-3">
+                    Income by Category ({{ selected_year }})
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart" height="250"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Include Chart.js via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // 1. Monthly Bar Chart
+    const months = {{ months | tojson }};
+    const incomeData = {{ income_data | tojson }};
+    const expenseData = {{ expense_data | tojson }};
+
+    const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(ctxMonthly, {
+        type: 'bar',
+        data: {
+            labels: months,
+            datasets: [
+                {
+                    label: 'Income',
+                    data: incomeData,
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Expense',
+                    data: expenseData,
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // 2. Category Pie Chart
+    const catLabels = {{ cat_labels | tojson }};
+    const catValues = {{ cat_values | tojson }};
+
+    const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctxCategory, {
+        type: 'pie',
+        data: {
+            labels: catLabels,
+            datasets: [{
+                data: catValues,
+                backgroundColor: [
+                    '#0d6efd', '#198754', '#ffc107', '#0dcaf0', 
+                    '#6f42c1', '#fd7e14', '#20c997', '#d63384'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+</script>
 {% endblock %}

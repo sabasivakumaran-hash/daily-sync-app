@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Data Inspector - Sri Ganesh Temple Society{% endblock %}
+
+{% block content %}
+<!-- CDN Scripts for Excel and PDF Exports -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<div class="container-fluid py-3 px-md-4">
+
+  <!-- TOP HEADER -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="fw-bold mb-0 text-success">Maintenance Data Inspector</h3>
+      <p class="text-muted small mb-0">Inspect raw database tables and multi-table joined views</p>
+    </div>
+  </div>
+
+  <!-- NAVIGATION TABS & EXPORT TOOLBAR -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs border-bottom-0 mb-0">
+      <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'daily' %}active fw-bold text-success border-success border-bottom-0{% endif %}" 
+           href="{{ url_for('maintenance_data_page', table='daily') }}">
+          <i class="bi bi-journal-text me-1"></i> Daily Activity Table (Joined View)
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'category' %}active fw-bold text-success border-success border-bottom-0{% endif %}" 
+           href="{{ url_for('maintenance_data_page', table='category') }}">
+          <i class="bi bi-tags me-1"></i> Category Lookup Table
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'activity' %}active fw-bold text-success border-success border-bottom-0{% endif %}" 
+           href="{{ url_for('maintenance_data_page', table='activity') }}">
+          <i class="bi bi-list-check me-1"></i> Activity Lookup Table
+        </a>
+      </li>
+    </ul>
+
+    <!-- ACTION BUTTONS: EXCEL, PDF, PRINT -->
+    <div class="btn-group shadow-sm" role="group" aria-label="Export Options">
+      <button type="button" class="btn btn-outline-success btn-sm fw-semibold" onclick="exportToExcel()">
+        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+      </button>
+      <button type="button" class="btn btn-outline-danger btn-sm fw-semibold" onclick="exportToPDF()">
+        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold" onclick="printTable()">
+        <i class="bi bi-printer me-1"></i> Print
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB CONTENT PANEL -->
+  <div class="card card-emerald shadow-sm" id="printableCard">
+    <div class="card-header card-header-dark-emerald bg-success text-white d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0 fw-bold" id="inspectorTitle">
+        {% if active_tab == 'daily' %}Daily Activity Data (Joined View){% endif %}
+        {% if active_tab == 'category' %}Category Lookup Data{% endif %}
+        {% if active_tab == 'activity' %}Activity Lookup Data{% endif %}
+      </h5>
+      <span class="badge bg-light text-dark fw-bold">
+        {% if active_tab == 'daily' %}{{ daily_activities|length }} Total Rows{% endif %}
+        {% if active_tab == 'category' %}{{ categories|length }} Rows{% endif %}
+        {% if active_tab == 'activity' %}{{ activities|length }} Rows{% endif %}
+      </span>
+    </div>
+
+    <div class="card-body p-0 table-responsive">
+      
+      <!-- 1. DAILY ACTIVITY JOINED TABLE (DEFAULT) -->
+      {% if active_tab == 'daily' %}
+      <table class="table table-hover align-middle mb-0" id="inspectorTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>AM/PM</th>
+            <th>Name</th>
+            <th>Activity Name</th>
+            <th>Category Name</th>
+            <th>Type</th>
+            <th class="text-end">Unit Price</th>
+            <th class="text-center">Qty</th>
+            <th class="text-end">Total Amount</th>
+            <th>Remarks</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for da in daily_activities %}
+          <tr>
+            <!-- Date Formatted MM/DD/YYYY -->
+            <td>
+              {% if da.txn_date %}
+                {% set date_parts = da.txn_date.split('-') %}
+                {% if date_parts|length == 3 %}
+                  {{ date_parts[1] }}/{{ date_parts[2] }}/{{ date_parts[0] }}
+                {% else %}
+                  {{ da.txn_date }}
+                {% endif %}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
+            <!-- Session AM/PM -->
+            <td>
+              <span class="badge bg-light text-dark border border-secondary fw-semibold">
+                {{ da.session_type if da.session_type else 'AM' }}
+              </span>
+            </td>
+
+            <!-- Name -->
+            <td>{{ da.person_name or '-' }}</td>
+
+            <!-- Activity Name -->
+            <td class="fw-bold text-dark">{{ da.activity_name or '[Unlinked]' }}</td>
+
+            <!-- Category Name -->
+            <td><span class="badge bg-success-subtle text-success border border-success-subtle">{{ da.category_name or '-' }}</span></td>
+
+            <!-- Type: INCOME / EXPENSE -->
+            <td>
+              {% if da.txn_type == 'EXPENSE' %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">EXPENSE</span>
+              {% else %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">INCOME</span>
+              {% endif %}
+            </td>
+
+            <!-- Unit Price, Qty, Total Amount -->
+            <td class="text-end font-monospace">${{ "%.2f"|format(da.unit_price or 0.0) }}</td>
+            <td class="text-center fw-semibold">{{ da.quantity or 1 }}</td>
+            <td class="text-end font-monospace fw-bold">
+              {% if da.txn_type == 'EXPENSE' %}
+                <span class="text-danger">-${{ "%.2f"|format(da.total_amount) }}</span>
+              {% else %}
+                <span class="text-success">+${{ "%.2f"|format(da.total_amount) }}</span>
+              {% endif %}
+            </td>
+
+            <!-- Remarks -->
+            <td><small class="text-muted">{{ da.remarks or '-' }}</small></td>
+
+            <!-- Status -->
+            <td>
+              {% if da.is_active == 1 or da.is_active == '1' %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" class="text-center text-muted py-4">No daily activities loaded in database.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      <!-- 2. CATEGORY TABLE -->
+      {% if active_tab == 'category' %}
+      <table class="table table-hover align-middle mb-0" id="inspectorTable">
+        <thead>
+          <tr>
+            <th>ID (category_lookup_id)</th>
+            <th>Category Name</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cat in categories %}
+          <tr>
+            <td class="fw-bold">{{ cat.category_lookup_id }}</td>
+            <td>{{ cat.category_name }}</td>
+            <td>
+              {% if cat.is_active == 1 or cat.is_active == '1' %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-center text-muted py-4">No categories loaded in database.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      <!-- 3. ACTIVITY TABLE -->
+      {% if active_tab == 'activity' %}
+      <table class="table table-hover align-middle mb-0" id="inspectorTable">
+        <thead>
+          <tr>
+            <th>ID (activity_lookup_id)</th>
+            <th>Activity Name</th>
+            <th>Category ID</th>
+            <th>Resolved Category</th>
+            <th>Type</th>
+            <th class="text-end">Default Price</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for act in activities %}
+          <tr>
+            <td class="fw-bold">{{ act.activity_lookup_id }}</td>
+            <td>{{ act.activity_name }}</td>
+            <td><code>{{ act.category_lookup_id }}</code></td>
+            <td><span class="fw-semibold">{{ act.category_name or '[Unlinked]' }}</span></td>
+            <td>
+              {% if act.txn_type == 'EXPENSE' %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">EXPENSE</span>
+              {% else %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">INCOME</span>
+              {% endif %}
+            </td>
+            <td class="text-end font-monospace">${{ "%.2f"|format(act.default_amount or 0.0) }}</td>
+            <td>
+              {% if act.is_active == 1 or act.is_active == '1' %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No activities loaded in database.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+
+<!-- EXPORT & PRINT JAVASCRIPT LOGIC -->
+<script>
+  // 1. Export to Excel (.xlsx)
+  function exportToExcel() {
+    const table = document.getElementById('inspectorTable');
+    if (!table) return;
+    
+    const activeTabName = "{{ active_tab }}";
+    const fileName = `Temple_Inspector_${activeTabName}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    
+    const wb = XLSX.utils.table_to_book(table, { sheet: activeTabName });
+    XLSX.writeFile(wb, fileName);
+  }
+
+  // 2. Export to PDF
+  function exportToPDF() {
+    const table = document.getElementById('inspectorTable');
+    if (!table) return;
+
+    const clone = table.cloneNode(true);
+    const tempDiv = document.createElement('div');
+    tempDiv.className = 'p-3';
+    tempDiv.appendChild(clone);
+    
+    const activeTabName = "{{ active_tab }}";
+    const opt = {
+      margin:       0.2,
+      filename:     `Temple_Inspector_${activeTabName}_${new Date().toISOString().slice(0,10)}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+    };
+    
+    html2pdf().set(opt).from(tempDiv).save();
+  }
+
+  // 3. Print Active Table
+  function printTable() {
+    window.print();
+  }
+</script>
+
+<!-- Print Styling -->
+<style>
+  @media print {
+    header, nav, footer, .btn-group, .nav-tabs, .btn-close {
+      display: none !important;
+    }
+    body {
+      background-color: #ffffff !important;
+    }
+    .card {
+      border: none !important;
+      box-shadow: none !important;
+    }
+  }
+</style>
+{% endblock %}

@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 
+{% block title %}Reports - Temple Sync{% endblock %}
+
 {% block content %}
+<!-- CDN Scripts for Excel and PDF Exports -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <div class="container-fluid py-3">
     <div class="row g-3">
-        <!-- Sidebar Navigation -->
+        
+        <!-- SIDEBAR NAVIGATION -->
         <div class="col-12 col-md-3 col-lg-3">
             <div class="card card-sage shadow-sm h-100">
                 <div class="card-header bg-white py-3 border-bottom">
@@ -13,52 +20,66 @@
                 </div>
                 <div class="card-body p-2">
                     <div class="list-group list-group-flush gap-1">
-                        <a href="{{ url_for('reports_page', report_type='income_expense') }}" 
+                        
+                        <!-- 1) Income & Expense -->
+                        <a href="{{ url_for('reports_page', report_type='income_expense', year=selected_year) }}"
                            class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'income_expense' %}active bg-success text-white{% else %}text-dark{% endif %}">
                             <i class="fa-solid fa-table-cells me-2"></i>Income & Expense
                         </a>
-                        <a href="{{ url_for('reports_page', report_type='fiscal_report', fiscal_year=selected_fy) }}" 
-                           class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold ms-2 {% if selected_report == 'fiscal_report' %}active bg-success text-white{% else %}text-dark{% endif %}">
+                        
+                        <!-- 2) Fiscal Report -->
+                        <a href="{{ url_for('reports_page', report_type='fiscal_report', fiscal_year=selected_year) }}"
+                           class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'fiscal_report' %}active bg-success text-white{% else %}text-dark{% endif %}">
                             <i class="fa-solid fa-file-invoice-dollar me-2"></i>Fiscal Report
                         </a>
-                        <a href="{{ url_for('reports_page', report_type='activity_summary') }}" 
+                        
+                        <!-- 3) Activity Summary -->
+                        <a href="{{ url_for('reports_page', report_type='activity_summary', year=selected_year) }}"
                            class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'activity_summary' %}active bg-success text-white{% else %}text-dark{% endif %}">
                             <i class="fa-solid fa-list-check me-2"></i>Activity Summary
                         </a>
-                        <a href="{{ url_for('reports_page', report_type='devotee_history') }}" 
-                           class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'devotee_history' %}active bg-success text-white{% else %}text-dark{% endif %}">
-                            <i class="fa-solid fa-user-clock me-2"></i>Devotee History
-                        </a>
-                        <a href="{{ url_for('reports_page', report_type='session_summary') }}" 
-                           class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'session_summary' %}active bg-success text-white{% else %}text-dark{% endif %}">
-                            <i class="fa-solid fa-sun me-2"></i>Session (AM/PM)
-                        </a>
+
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Display Panel -->
+        <!-- MAIN DISPLAY PANEL -->
         <div class="col-12 col-md-9 col-lg-9">
-            <!-- Filter Options Header -->
+            
+            <!-- FILTER OPTIONS HEADER -->
             <div class="card shadow-sm mb-3">
                 <div class="card-body py-2">
                     <form method="GET" action="{{ url_for('reports_page') }}" class="row g-2 align-items-center">
                         <input type="hidden" name="report_type" value="{{ selected_report }}">
                         
                         {% if selected_report == 'fiscal_report' %}
-                        <div class="col-auto">
-                            <label class="col-form-label fw-bold"><i class="fa-solid fa-calendar-check me-1 text-success"></i>Fiscal Year (CRA T3010):</label>
-                        </div>
-                        <div class="col-auto">
-                            <select name="fiscal_year" class="form-select fw-bold">
-                                {% for fy in available_fys %}
-                                <option value="{{ fy }}" {% if fy == selected_fy %}selected{% endif %}>FY {{ fy }} (Jan 01, {{ fy }} - Dec 31, {{ fy }})</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                            <div class="col-auto">
+                                <label class="col-form-label fw-bold"><i class="fa-solid fa-calendar-check me-1 text-success"></i>Fiscal Year (CRA T3010):</label>
+                            </div>
+                            <div class="col-auto">
+                                <select name="fiscal_year" class="form-select fw-bold" onchange="this.form.submit()">
+                                    {% for y in available_years %}
+                                        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>FY {{ y }} (Jan 01, {{ y }} - Dec 31, {{ y }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         {% else %}
-                        <div class="col-auto">
+                            <div class="col-auto">
+                                <label for="year" class="col-form-label fw-bold">Year:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select name="year" id="year" class="form-select border-success fw-bold" onchange="this.form.submit()">
+                                    {% for y in available_years %}
+                                        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endif %}
+
+                        <!-- Date Range Filters for Income & Expense Report -->
+                        {% if selected_report == 'income_expense' %}
+                        <div class="col-auto ms-2">
                             <label class="col-form-label fw-bold">Start Date</label>
                         </div>
                         <div class="col-auto">
@@ -81,32 +102,44 @@
                 </div>
             </div>
 
-            <!-- Statement Content -->
-            {% if selected_report == 'income_expense' or selected_report == 'fiscal_report' %}
-            <div class="card shadow-sm">
+            <!-- STATEMENT CONTENT CARD -->
+            <div class="card shadow-sm" id="reportCard">
                 <div class="card-body p-4">
-                    <!-- Export Actions -->
+                    
+                    <!-- EXPORT ACTION BUTTONS -->
                     <div class="d-flex justify-content-end gap-2 mb-3">
-                        <button class="btn btn-sm btn-outline-success"><i class="fa-solid fa-file-excel me-1"></i>Excel</button>
-                        <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-file-pdf me-1"></i>PDF</button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="fa-solid fa-print me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="exportReportToExcel()">
+                            <i class="fa-solid fa-file-excel me-1"></i>Excel
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="exportReportToPDF()">
+                            <i class="fa-solid fa-file-pdf me-1"></i>PDF
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                            <i class="fa-solid fa-print me-1"></i>Print
+                        </button>
                     </div>
 
-                    <!-- Temple Official Letterhead Header -->
+                    <!-- TEMPLE OFFICIAL LETTERHEAD HEADER -->
                     <div class="text-center mb-4">
                         <h4 class="fw-bold mb-1">SRI GANESH TEMPLE SOCIETY OF B.C.</h4>
                         <p class="text-muted small mb-1">3525 Fraser Street, Vancouver, BC, V5V 4C5, CANADA | Tel. 604 879 3505</p>
                         <p class="text-muted small mb-2">Email: sriganeshtemplevancouverbc@gmail.com</p>
                         <p class="text-muted small mb-3">Incorporation #: S39361 &nbsp;|&nbsp; Charity #: 86957 1026 RR0001</p>
+                        
                         <h5 class="fw-bold text-success text-uppercase mb-1">
-                            {% if selected_report == 'fiscal_report' %}FISCAL STATEMENT (FY {{ selected_fy }}){% else %}INCOME EXPENSE STATEMENT{% endif %}
+                            {% if selected_report == 'income_expense' %}INCOME EXPENSE STATEMENT{% endif %}
+                            {% if selected_report == 'fiscal_report' %}FISCAL STATEMENT (FY {{ selected_year }}){% endif %}
+                            {% if selected_report == 'activity_summary' %}ACTIVITY PERFORMANCE MATRIX{% endif %}
                         </h5>
                         <span class="badge bg-light text-dark border">Period: {{ start_date }} to {{ end_date }}</span>
                     </div>
 
-                    <!-- 12-Month Matrix Table Structure -->
+                    <!-- --------------------------------------------------------- -->
+                    <!-- 1 & 2) CATEGORY MATRIX TABLE (INCOME & EXPENSE / FISCAL)  -->
+                    <!-- --------------------------------------------------------- -->
+                    {% if selected_report in ['income_expense', 'fiscal_report'] %}
                     <div class="table-responsive">
-                        <table class="table table-bordered table-sm align-middle text-center small">
+                        <table class="table table-bordered table-sm align-middle text-center small" id="reportTable">
                             <thead class="table-light text-uppercase">
                                 <tr>
                                     <th class="text-start" style="min-width: 140px;">Category</th>
@@ -116,63 +149,252 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- INCOME -->
+                                
+                                <!-- INCOME HEADER -->
                                 <tr class="table-success fw-bold text-start">
                                     <td colspan="14">INCOME</td>
                                 </tr>
-                                {% for cat_name, m_vals in income_matrix.items() %}
+
+                                {% for cat_name, m_vals in income_categories.items() %}
                                 <tr>
                                     <td class="text-start ps-3 fw-semibold">{{ cat_name }}</td>
                                     {% for m in range(1, 13) %}
-                                    <td>{{ "%.2f"|format(m_vals[m]) if m_vals[m] > 0 else '-' }}</td>
+                                        <td>
+                                            {% if m_vals[m] > 0 %}
+                                                {{ "{:,.2f}".format(m_vals[m]) }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
                                     {% endfor %}
-                                    <td class="fw-bold">${{ "%.2f"|format(m_vals.values()|sum) }}</td>
+                                    <td class="fw-bold">${{ "{:,.2f}".format(m_vals['total']) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="14" class="text-center text-muted">No income categories found.</td>
                                 </tr>
                                 {% endfor %}
+
+                                <!-- TOTAL INCOME ROW -->
                                 <tr class="fw-bold table-light">
                                     <td class="text-start">TOTAL INCOME</td>
                                     {% for m in range(1, 13) %}
-                                    <td class="text-success">${{ "%.2f"|format(income_totals[m]) }}</td>
+                                        <td class="text-success">${{ "{:,.2f}".format(income_monthly_totals[m]) }}</td>
                                     {% endfor %}
-                                    <td class="text-success">${{ "%.2f"|format(grand_total_income) }}</td>
+                                    <td class="text-success fs-6">${{ "{:,.2f}".format(total_income_year) }}</td>
                                 </tr>
 
-                                <!-- EXPENSE -->
+                                <!-- EXPENSE HEADER -->
                                 <tr class="table-danger fw-bold text-start">
                                     <td colspan="14">EXPENSE</td>
                                 </tr>
-                                {% for cat_name, m_vals in expense_matrix.items() %}
+
+                                {% for cat_name, m_vals in expense_categories.items() %}
                                 <tr>
                                     <td class="text-start ps-3 fw-semibold">{{ cat_name }}</td>
                                     {% for m in range(1, 13) %}
-                                    <td>{{ "%.2f"|format(m_vals[m]) if m_vals[m] > 0 else '-' }}</td>
+                                        <td>
+                                            {% if m_vals[m] > 0 %}
+                                                {{ "{:,.2f}".format(m_vals[m]) }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
                                     {% endfor %}
-                                    <td class="fw-bold">${{ "%.2f"|format(m_vals.values()|sum) }}</td>
+                                    <td class="fw-bold">${{ "{:,.2f}".format(m_vals['total']) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="14" class="text-center text-muted">No expense categories found.</td>
                                 </tr>
                                 {% endfor %}
+
+                                <!-- TOTAL EXPENSE ROW -->
                                 <tr class="fw-bold table-light">
                                     <td class="text-start">TOTAL EXPENSE</td>
                                     {% for m in range(1, 13) %}
-                                    <td class="text-danger">${{ "%.2f"|format(expense_totals[m]) }}</td>
+                                        <td class="text-danger">${{ "{:,.2f}".format(expense_monthly_totals[m]) }}</td>
                                     {% endfor %}
-                                    <td class="text-danger">${{ "%.2f"|format(grand_total_expense) }}</td>
+                                    <td class="text-danger fs-6">${{ "{:,.2f}".format(total_expense_year) }}</td>
                                 </tr>
 
-                                <!-- NET SURPLUS -->
-                                <tr class="fw-bold border-top border-2 {% if net_grand_total >= 0 %}table-success{% else %}table-danger{% endif %}">
-                                    <td class="text-start">NET SURPLUS / (DEFICIT)</td>
+                                <!-- NET SURPLUS ROW -->
+                                <tr class="fw-bold border-top border-2 border-dark" style="background-color: #e8f5e9;">
+                                    <td class="text-start" style="color: #0f5132;">NET SURPLUS / (DEFICIT)</td>
                                     {% for m in range(1, 13) %}
-                                    <td>${{ "%.2f"|format(income_totals[m] - expense_totals[m]) }}</td>
+                                        <td style="color: #0f5132;">${{ "{:,.2f}".format(net_monthly_surplus[m]) }}</td>
                                     {% endfor %}
-                                    <td>${{ "%.2f"|format(net_grand_total) }}</td>
+                                    <td class="fs-6" style="color: #0f5132;">${{ "{:,.2f}".format(net_surplus_year) }}</td>
                                 </tr>
+
                             </tbody>
                         </table>
                     </div>
+                    {% endif %}
+
+                    <!-- --------------------------------------------------------- -->
+                    <!-- 3) CLEAN 12-MONTH ACTIVITY PERFORMANCE MATRIX             -->
+                    <!-- --------------------------------------------------------- -->
+                    {% if selected_report == 'activity_summary' %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm align-middle text-center small" id="reportTable">
+                            <thead class="table-light text-uppercase fw-bold">
+                                <tr>
+                                    <th class="text-start" style="min-width: 220px;">Category &bull; Activity Breakdown</th>
+                                    <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+                                    <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cat, acts in act_matrix.items() %}
+                                    
+                                    <!-- Category Header -->
+                                    <tr class="table-secondary fw-bold text-start">
+                                        <td colspan="14" class="text-uppercase text-success">
+                                            <i class="fa-solid fa-folder-open me-1"></i> {{ cat }}
+                                        </td>
+                                    </tr>
+
+                                    {% for act, act_data in acts.items() %}
+                                        {% set t_type = act_data['txn_type'] %}
+                                        {% set m_vals = act_data['months'] %}
+                                        
+                                        <!-- Single Activity Row (Skipped if Year Total is 0) -->
+                                        {% if m_vals[13] > 0 %}
+                                        <tr>
+                                            <td class="text-start ps-4 fw-semibold text-secondary">
+                                                &bull; {{ act }} 
+                                                {% if t_type == 'EXPENSE' %}
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle float-end">EXPENSE</span>
+                                                {% else %}
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle float-end">INCOME</span>
+                                                {% endif %}
+                                            </td>
+                                            {% for m in range(1, 14) %}
+                                                <td class="{% if m == 13 %}fw-bold{% endif %} {% if t_type == 'EXPENSE' %}text-danger{% else %}text-success{% endif %}">
+                                                    {% if m_vals[m] > 0 %}${{ "{:,.2f}".format(m_vals[m]) }}{% else %}-{% endif %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endif %}
+
+                                    {% endfor %}
+
+                                    <!-- Category Subtotals -->
+                                    {% set c_types = act_cat_subtotals[cat] %}
+                                    
+                                    {% if c_types['INCOME'][13] > 0 %}
+                                    <tr class="table-light fw-bold border-top">
+                                        <td class="text-start ps-3 text-success">
+                                            <i class="fa-solid fa-plus-circle me-1"></i>Total {{ cat }} Income
+                                        </td>
+                                        {% for m in range(1, 14) %}
+                                            <td class="text-success">${{ "{:,.2f}".format(c_types['INCOME'][m]) }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endif %}
+
+                                    {% if c_types['EXPENSE'][13] > 0 %}
+                                    <tr class="table-light fw-bold">
+                                        <td class="text-start ps-3 text-danger">
+                                            <i class="fa-solid fa-minus-circle me-1"></i>Total {{ cat }} Expense
+                                        </td>
+                                        {% for m in range(1, 14) %}
+                                            <td class="text-danger">${{ "{:,.2f}".format(c_types['EXPENSE'][m]) }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endif %}
+
+                                    <!-- Final Category Net Line in Dark Emerald Green -->
+                                    <tr class="fw-bold border-bottom border-dark border-2" style="background-color: #e8f5e9;">
+                                        <td class="text-start text-uppercase ps-3" style="color: #0f5132;">
+                                            <i class="fa-solid fa-calculator me-1"></i>Net {{ cat }}
+                                        </td>
+                                        {% for m in range(1, 14) %}
+                                            <td style="color: #0f5132; font-weight: 700;">${{ "{:,.2f}".format(c_types['NET'][m]) }}</td>
+                                        {% endfor %}
+                                    </tr>
+
+                                {% else %}
+                                    <tr><td colspan="14" class="text-center text-muted py-4">No records found for {{ selected_year }}.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                            
+                            <!-- Grand Totals Footer -->
+                            {% if act_matrix %}
+                            <tfoot class="fw-bold border-top border-3 align-middle">
+                                {% if act_grand_totals['INCOME'][13] > 0 %}
+                                <tr class="table-light">
+                                    <td class="text-start text-uppercase text-success">Grand Total Income</td>
+                                    {% for m in range(1, 14) %}
+                                        <td class="text-success">${{ "{:,.2f}".format(act_grand_totals['INCOME'][m]) }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endif %}
+                                
+                                {% if act_grand_totals['EXPENSE'][13] > 0 %}
+                                <tr class="table-light">
+                                    <td class="text-start text-uppercase text-danger">Grand Total Expense</td>
+                                    {% for m in range(1, 14) %}
+                                        <td class="text-danger">${{ "{:,.2f}".format(act_grand_totals['EXPENSE'][m]) }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endif %}
+
+                                <!-- Final Net Grand Total in Deep Emerald Green Header/Banner Style -->
+                                <tr style="background-color: #0f5132; color: #ffffff;" class="fs-6">
+                                    <td class="text-start text-uppercase fw-bold">Net Grand Total</td>
+                                    {% for m in range(1, 14) %}
+                                        <td class="fw-bold">${{ "{:,.2f}".format(act_grand_totals['NET'][m]) }}</td>
+                                    {% endfor %}
+                                </tr>
+                            </tfoot>
+                            {% endif %}
+                        </table>
+                    </div>
+                    {% endif %}
+
                 </div>
             </div>
-            {% endif %}
+
         </div>
     </div>
 </div>
+
+<!-- EXPORT LOGIC -->
+<script>
+  function exportReportToExcel() {
+    const table = document.getElementById('reportTable');
+    if (!table) return;
+    const reportType = "{{ selected_report }}";
+    const year = "{{ selected_year }}";
+    const wb = XLSX.utils.table_to_book(table, { sheet: reportType });
+    XLSX.writeFile(wb, `Temple_Report_${reportType}_${year}.xlsx`);
+  }
+
+  function exportReportToPDF() {
+    const card = document.getElementById('reportCard');
+    if (!card) return;
+    const reportType = "{{ selected_report }}";
+    const year = "{{ selected_year }}";
+    const opt = {
+      margin:       0.2,
+      filename:     `Temple_Report_${reportType}_${year}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+    };
+    html2pdf().set(opt).from(card).save();
+  }
+</script>
+
+<style>
+  @media print {
+    header, nav, footer, .btn-group, form, .badge, .col-lg-3 { display: none !important; }
+    .col-lg-9 { width: 100% !important; }
+    body { background-color: #fff !important; }
+    .card { border: none !important; }
+  }
+</style>
 {% endblock %}

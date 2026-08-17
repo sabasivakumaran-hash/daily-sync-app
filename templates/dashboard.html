@@ -1,13 +1,22 @@
 {% extends "base.html" %}
 
+{% block title %}Financial Dashboard - Temple Sync{% endblock %}
+
 {% block content %}
-<div class="container py-4">
+<div class="container-fluid px-md-4 py-4">
+
     <!-- Header & Year Filter -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="bi bi-speedometer2 me-2"></i>Financial Dashboard</h2>
-        <form method="GET" action="{{ url_for('dashboard_page') }}" class="d-flex align-items-center">
-            <label for="year" class="me-2 fw-bold">Select Year:</label>
-            <select name="year" id="year" class="form-select form-select-sm" onchange="this.form.submit()">
+        <div>
+            <h2 class="h3 font-sans fw-bold mb-0 text-dark">
+                <i class="fa-solid fa-chart-line me-2 text-success"></i>Financial Dashboard
+            </h2>
+            <p class="text-muted small mb-0">Income vs. Expense summary and annual analytics.</p>
+        </div>
+
+        <form method="GET" action="{{ url_for('dashboard_page') }}" class="d-flex align-items-center bg-white p-2 rounded border shadow-sm">
+            <label for="year" class="me-2 fw-bold text-muted small mb-0">Select Year:</label>
+            <select name="year" id="year" class="form-select form-select-sm fw-bold border-0 bg-light" onchange="this.form.submit()">
                 {% for yr in available_years %}
                     <option value="{{ yr }}" {% if yr == selected_year %}selected{% endif %}>{{ yr }}</option>
                 {% endfor %}
@@ -16,48 +25,45 @@
     </div>
 
     <!-- KPI Summary Cards -->
-    <!-- KPI CARDS -->
     <div class="row g-3 mb-4">
-    
-    <!-- Total Income -->
-    <div class="col-md-4">
-        <div class="card border-0 bg-success text-white shadow-sm">
-        <div class="card-body p-3">
-            <h6 class="text-uppercase fw-semibold mb-1 opacity-75">Total Income ({{ selected_year }})</h6>
-            <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(total_income) }}</h3>
+        <!-- Total Income -->
+        <div class="col-md-4">
+            <div class="card border-0 bg-success text-white shadow-sm rounded-3">
+                <div class="card-body p-3">
+                    <h6 class="text-uppercase fw-semibold mb-1 opacity-75 small">Total Income ({{ selected_year }})</h6>
+                    <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(total_income or 0.0) }}</h3>
+                </div>
+            </div>
         </div>
-        </div>
-    </div>
 
-    <!-- Total Expense -->
-    <div class="col-md-4">
-        <div class="card border-0 bg-danger text-white shadow-sm">
-        <div class="card-body p-3">
-            <h6 class="text-uppercase fw-semibold mb-1 opacity-75">Total Expense ({{ selected_year }})</h6>
-            <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(total_expense) }}</h3>
+        <!-- Total Expense -->
+        <div class="col-md-4">
+            <div class="card border-0 bg-danger text-white shadow-sm rounded-3">
+                <div class="card-body p-3">
+                    <h6 class="text-uppercase fw-semibold mb-1 opacity-75 small">Total Expense ({{ selected_year }})</h6>
+                    <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(total_expense or 0.0) }}</h3>
+                </div>
+            </div>
         </div>
-        </div>
-    </div>
 
-    <!-- Net Surplus / Deficit -->
-    <div class="col-md-4">
-        <div class="card border-0 {% if net_surplus >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %} text-white shadow-sm">
-        <div class="card-body p-3">
-            <h6 class="text-uppercase fw-semibold mb-1 opacity-75">Net Surplus / Deficit</h6>
-            <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(net_surplus) }}</h3>
+        <!-- Net Surplus / Deficit -->
+        <div class="col-md-4">
+            <div class="card border-0 {% if net_surplus >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %} text-white shadow-sm rounded-3">
+                <div class="card-body p-3">
+                    <h6 class="text-uppercase fw-semibold mb-1 opacity-75 small">Net Surplus / Deficit</h6>
+                    <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(net_surplus or 0.0) }}</h3>
+                </div>
+            </div>
         </div>
-        </div>
-    </div>
-
     </div>
 
     <!-- Charts Row -->
     <div class="row g-4">
         <!-- Monthly Income vs Expense Bar Chart -->
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3">
-                    Monthly Income vs. Expenses ({{ selected_year }})
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white fw-bold py-3 border-bottom">
+                    <i class="fa-solid fa-chart-column me-2 text-primary"></i>Monthly Income vs. Expenses ({{ selected_year }})
                 </div>
                 <div class="card-body">
                     <canvas id="monthlyChart" height="150"></canvas>
@@ -67,9 +73,9 @@
 
         <!-- Category Distribution Pie Chart -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3">
-                    Income by Category ({{ selected_year }})
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white fw-bold py-3 border-bottom">
+                    <i class="fa-solid fa-chart-pie me-2 text-success"></i>Income by Category ({{ selected_year }})
                 </div>
                 <div class="card-body">
                     <canvas id="categoryChart" height="250"></canvas>
@@ -77,69 +83,79 @@
             </div>
         </div>
     </div>
+
 </div>
 
 <!-- Include Chart.js via CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // 1. Monthly Bar Chart
-    const months = {{ months | tojson }};
-    const incomeData = {{ income_data | tojson }};
-    const expenseData = {{ expense_data | tojson }};
+    document.addEventListener('DOMContentLoaded', function () {
+        // 1. Monthly Bar Chart
+        const months = {{ months | tojson }};
+        const incomeData = {{ income_data | tojson }};
+        const expenseData = {{ expense_data | tojson }};
 
-    const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
-    new Chart(ctxMonthly, {
-        type: 'bar',
-        data: {
-            labels: months,
-            datasets: [
-                {
-                    label: 'Income',
-                    data: incomeData,
-                    backgroundColor: 'rgba(25, 135, 84, 0.7)',
-                    borderColor: 'rgba(25, 135, 84, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Expense',
-                    data: expenseData,
-                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
-                    borderColor: 'rgba(220, 53, 69, 1)',
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: { beginAtZero: true }
-            }
-        }
-    });
-
-    // 2. Category Pie Chart
-    const catLabels = {{ cat_labels | tojson }};
-    const catValues = {{ cat_values | tojson }};
-
-    const ctxCategory = document.getElementById('categoryChart').getContext('2d');
-    new Chart(ctxCategory, {
-        type: 'pie',
-        data: {
-            labels: catLabels,
-            datasets: [{
-                data: catValues,
-                backgroundColor: [
-                    '#0d6efd', '#198754', '#ffc107', '#0dcaf0', 
-                    '#6f42c1', '#fd7e14', '#20c997', '#d63384'
+        const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
+        new Chart(ctxMonthly, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        backgroundColor: 'rgba(25, 135, 84, 0.75)',
+                        borderColor: 'rgba(25, 135, 84, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Expense',
+                        data: expenseData,
+                        backgroundColor: 'rgba(220, 53, 69, 0.75)',
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 1
+                    }
                 ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'bottom' }
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
             }
-        }
+        });
+
+        // 2. Category Pie Chart
+        const catLabels = {{ cat_labels | tojson }};
+        const catValues = {{ cat_values | tojson }};
+
+        const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+        new Chart(ctxCategory, {
+            type: 'pie',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catValues,
+                    backgroundColor: [
+                        '#198754', '#0d6efd', '#ffc107', '#0dcaf0', 
+                        '#6f42c1', '#fd7e14', '#20c997', '#d63384'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
     });
 </script>
 {% endblock %}

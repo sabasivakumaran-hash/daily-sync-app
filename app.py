@@ -152,39 +152,66 @@ def daily_activity_save():
 def dashboard_page():
     conn = get_db()
     current_year_str = datetime.now().strftime('%Y')
-    selected_year = request.args.get('year', current_year_str)
 
+    # Extract 4-digit year (CCYY) handling M/D/CCYY, MM/DD/CCYY, YYYY-MM-DD
     years_rows = conn.execute("""
-        SELECT DISTINCT strftime('%Y', txn_date) as year 
+        SELECT DISTINCT 
+            CASE 
+                WHEN txn_date LIKE '%/%/____' THEN substr(txn_date, -4)
+                WHEN txn_date LIKE '____-__-__%' THEN substr(txn_date, 1, 4)
+                ELSE strftime('%Y', txn_date)
+            END as year 
         FROM daily_activity 
-        WHERE is_active = 1 AND txn_date IS NOT NULL
+        WHERE is_active = 1 AND txn_date IS NOT NULL AND txn_date != ''
         ORDER BY year DESC
     """).fetchall()
+
     available_years = [r['year'] for r in years_rows if r['year']]
+    
+    # Default to requested year -> most recent year with data -> current year
+    selected_year = request.args.get('year')
+    if not selected_year:
+        selected_year = available_years[0] if available_years else current_year_str
+
     if current_year_str not in available_years:
         available_years.insert(0, current_year_str)
 
-    kpi = conn.execute("""
+    # Reusable SQL clause for isolating the 4-digit year
+    year_clause = """
+        (CASE 
+            WHEN t.txn_date LIKE '%/%/____' THEN substr(t.txn_date, -4)
+            WHEN t.txn_date LIKE '____-__-__%' THEN substr(t.txn_date, 1, 4)
+            ELSE strftime('%Y', t.txn_date)
+        END) = ?
+    """
+
+    # 1. KPI Totals (Handles both 'income'/'INCOME' and 'expense'/'EXPENSE')
+    kpi = conn.execute(f"""
         SELECT 
-            COALESCE(SUM(CASE WHEN COALESCE(a.txn_type, 'INCOME') = 'INCOME' THEN t.total_amount ELSE 0 END), 0) as total_income,
-            COALESCE(SUM(CASE WHEN a.txn_type = 'EXPENSE' THEN t.total_amount ELSE 0 END), 0) as total_expense
+            COALESCE(SUM(CASE WHEN LOWER(COALESCE(a.txn_type, 'income')) = 'income' THEN t.total_amount ELSE 0 END), 0) as total_income,
+            COALESCE(SUM(CASE WHEN LOWER(a.txn_type) = 'expense' THEN t.total_amount ELSE 0 END), 0) as total_expense
         FROM daily_activity t
         LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
-        WHERE t.is_active = 1 AND strftime('%Y', t.txn_date) = ?
+        WHERE t.is_active = 1 AND {year_clause}
     """, (selected_year,)).fetchone()
 
-    total_income = float(kpi['total_income'])
-    total_expense = float(kpi['total_expense'])
+    total_income = float(kpi['total_income']) if kpi and kpi['total_income'] else 0.0
+    total_expense = float(kpi['total_expense']) if kpi and kpi['total_expense'] else 0.0
     net_surplus = total_income - total_expense
 
-    monthly_rows = conn.execute("""
+    # 2. Monthly Breakdown (Handles single-digit months like '1/26/2026')
+    monthly_rows = conn.execute(f"""
         SELECT 
-            strftime('%m', t.txn_date) as month_num,
-            COALESCE(SUM(CASE WHEN COALESCE(a.txn_type, 'INCOME') = 'INCOME' THEN t.total_amount ELSE 0 END), 0) as income,
-            COALESCE(SUM(CASE WHEN a.txn_type = 'EXPENSE' THEN t.total_amount ELSE 0 END), 0) as expense
+            CASE 
+                WHEN t.txn_date LIKE '%/%/____' THEN printf('%02d', CAST(substr(t.txn_date, 1, instr(t.txn_date, '/') - 1) AS INTEGER))
+                WHEN t.txn_date LIKE '____-__-__%' THEN substr(t.txn_date, 6, 2)
+                ELSE strftime('%m', t.txn_date)
+            END as month_num,
+            COALESCE(SUM(CASE WHEN LOWER(COALESCE(a.txn_type, 'income')) = 'income' THEN t.total_amount ELSE 0 END), 0) as income,
+            COALESCE(SUM(CASE WHEN LOWER(a.txn_type) = 'expense' THEN t.total_amount ELSE 0 END), 0) as expense
         FROM daily_activity t
         LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
-        WHERE t.is_active = 1 AND strftime('%Y', t.txn_date) = ?
+        WHERE t.is_active = 1 AND {year_clause}
         GROUP BY month_num
         ORDER BY month_num ASC
     """, (selected_year,)).fetchall()
@@ -195,17 +222,21 @@ def dashboard_page():
 
     for r in monthly_rows:
         if r['month_num']:
-            idx = int(r['month_num']) - 1
-            if 0 <= idx < 12:
-                income_data[idx] = float(r['income'])
-                expense_data[idx] = float(r['expense'])
+            try:
+                idx = int(r['month_num']) - 1
+                if 0 <= idx < 12:
+                    income_data[idx] = float(r['income'])
+                    expense_data[idx] = float(r['expense'])
+            except ValueError:
+                pass
 
-    category_dist = conn.execute("""
+    # 3. Category Distribution
+    category_dist = conn.execute(f"""
         SELECT c.category_name, SUM(t.total_amount) as amount
         FROM daily_activity t
         JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
         JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-        WHERE t.is_active = 1 AND COALESCE(a.txn_type, 'INCOME') = 'INCOME' AND strftime('%Y', t.txn_date) = ?
+        WHERE t.is_active = 1 AND LOWER(COALESCE(a.txn_type, 'income')) = 'income' AND {year_clause}
         GROUP BY c.category_name
         ORDER BY amount DESC
     """, (selected_year,)).fetchall()
@@ -214,6 +245,7 @@ def dashboard_page():
     cat_values = [float(r['amount']) for r in category_dist]
 
     conn.close()
+
     return render_template(
         'dashboard.html',
         selected_year=selected_year,
@@ -227,7 +259,6 @@ def dashboard_page():
         cat_labels=cat_labels,
         cat_values=cat_values
     )
-
 # ---------------------------------------------------------
 # 4. REPORTS PAGE
 # ---------------------------------------------------------
@@ -237,20 +268,40 @@ def reports_page():
     current_year_str = datetime.now().strftime('%Y')
     
     selected_report = request.args.get('report_type', 'income_expense')
-    selected_year = request.args.get('fiscal_year', request.args.get('year', current_year_str))
 
+    # Extract 4-digit year (CCYY) handling M/D/CCYY, MM/DD/CCYY, and YYYY-MM-DD
     years_rows = conn.execute("""
-        SELECT DISTINCT strftime('%Y', txn_date) as year 
+        SELECT DISTINCT 
+            CASE 
+                WHEN txn_date LIKE '%/%/____' THEN substr(txn_date, -4)
+                WHEN txn_date LIKE '____-__-__%' THEN substr(txn_date, 1, 4)
+                ELSE strftime('%Y', txn_date)
+            END as year 
         FROM daily_activity 
-        WHERE is_active = 1 AND txn_date IS NOT NULL 
+        WHERE is_active = 1 AND txn_date IS NOT NULL AND txn_date != ''
         ORDER BY year DESC
     """).fetchall()
+
     available_years = [r['year'] for r in years_rows if r['year']]
+    
+    selected_year = request.args.get('fiscal_year', request.args.get('year'))
+    if not selected_year:
+        selected_year = available_years[0] if available_years else current_year_str
+
     if current_year_str not in available_years:
         available_years.insert(0, current_year_str)
 
     start_date = request.args.get('start_date', f"{selected_year}-01-01")
     end_date = request.args.get('end_date', f"{selected_year}-12-31")
+
+    # SQL helper clause for isolating CCYY year
+    year_clause = """
+        (CASE 
+            WHEN t.txn_date LIKE '%/%/____' THEN substr(t.txn_date, -4)
+            WHEN t.txn_date LIKE '____-__-__%' THEN substr(t.txn_date, 1, 4)
+            ELSE strftime('%Y', t.txn_date)
+        END) = ?
+    """
 
     # Data structures
     income_categories = {}
@@ -275,26 +326,34 @@ def reports_page():
     }
 
     if selected_report in ['income_expense', 'fiscal_report']:
-        cat_rows = conn.execute("""
+        cat_rows = conn.execute(f"""
             SELECT 
                 c.category_name,
-                COALESCE(a.txn_type, 'INCOME') as txn_type,
-                CAST(strftime('%m', t.txn_date) AS INTEGER) as month_num,
+                UPPER(COALESCE(a.txn_type, 'INCOME')) as txn_type,
+                CAST(
+                    CASE 
+                        WHEN t.txn_date LIKE '%/%/____' THEN substr(t.txn_date, 1, instr(t.txn_date, '/') - 1)
+                        WHEN t.txn_date LIKE '____-__-__%' THEN substr(t.txn_date, 6, 2)
+                        ELSE strftime('%m', t.txn_date)
+                    END AS INTEGER
+                ) as month_num,
                 SUM(t.total_amount) as total_amount
             FROM daily_activity t
             JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
             JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-            WHERE t.is_active = 1 
-              AND strftime('%Y', t.txn_date) = ?
+            WHERE t.is_active = 1 AND {year_clause}
             GROUP BY c.category_name, txn_type, month_num
             ORDER BY c.category_name ASC
         """, (selected_year,)).fetchall()
 
         for r in cat_rows:
             cat = r['category_name'] if r['category_name'] else 'UNASSIGNED'
-            t_type = r['txn_type']
+            t_type = r['txn_type'].upper() if r['txn_type'] else 'INCOME'
             m_num = r['month_num']
-            amt = float(r['total_amount'])
+            amt = float(r['total_amount']) if r['total_amount'] else 0.0
+
+            if not m_num or not (1 <= m_num <= 12):
+                continue
 
             target_dict = expense_categories if t_type == 'EXPENSE' else income_categories
             
@@ -316,28 +375,36 @@ def reports_page():
             net_monthly_surplus[m] = income_monthly_totals[m] - expense_monthly_totals[m]
 
     if selected_report == 'activity_summary':
-        activity_rows = conn.execute("""
+        activity_rows = conn.execute(f"""
             SELECT 
                 c.category_name,
                 a.activity_name,
-                COALESCE(a.txn_type, 'INCOME') as txn_type,
-                CAST(strftime('%m', t.txn_date) AS INTEGER) as month_num,
+                UPPER(COALESCE(a.txn_type, 'INCOME')) as txn_type,
+                CAST(
+                    CASE 
+                        WHEN t.txn_date LIKE '%/%/____' THEN substr(t.txn_date, 1, instr(t.txn_date, '/') - 1)
+                        WHEN t.txn_date LIKE '____-__-__%' THEN substr(t.txn_date, 6, 2)
+                        ELSE strftime('%m', t.txn_date)
+                    END AS INTEGER
+                ) as month_num,
                 SUM(t.total_amount) as total_amount
             FROM daily_activity t
             JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
             JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-            WHERE t.is_active = 1 
-              AND strftime('%Y', t.txn_date) = ?
+            WHERE t.is_active = 1 AND {year_clause}
             GROUP BY c.category_name, a.activity_name, txn_type, month_num
             ORDER BY c.category_name ASC, a.activity_name ASC
         """, (selected_year,)).fetchall()
 
         for r in activity_rows:
-            cat = r['category_name']
+            cat = r['category_name'] if r['category_name'] else 'UNASSIGNED'
             act = r['activity_name']
-            t_type = r['txn_type']
+            t_type = r['txn_type'].upper() if r['txn_type'] else 'INCOME'
             m_num = r['month_num']
-            amt = float(r['total_amount'])
+            amt = float(r['total_amount']) if r['total_amount'] else 0.0
+
+            if not m_num or not (1 <= m_num <= 12):
+                continue
 
             if cat not in act_matrix:
                 act_matrix[cat] = {}

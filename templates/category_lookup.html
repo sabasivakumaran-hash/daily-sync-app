@@ -3,7 +3,24 @@
 {% block title %}Category List - Temple Sync{% endblock %}
 
 {% block content %}
+<style>
+  /* Custom styled pagination matching page green theme */
+  .dataTables_wrapper .pagination .page-item.active .page-link {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+    color: #ffffff !important;
+  }
+  .dataTables_wrapper .pagination .page-link {
+    color: #198754 !important;
+  }
+  .dataTables_wrapper .pagination .page-link:hover {
+    color: #146c43 !important;
+    background-color: #e8f5e9 !important;
+  }
+</style>
+
 <div class="row g-4">
+    <!-- PANEL 1: RECORD CATEGORY FORM (HIDDEN BY DEFAULT) -->
     <!-- PANEL 1: RECORD CATEGORY FORM (HIDDEN BY DEFAULT) -->
     <div class="col-12" id="panelFormContainer" style="display: none;">
         <div class="card card-sage shadow-sm mb-2">

@@ -1,6 +1,6 @@
-credentials.json
-# *.db
-*.sqlite3
-__pycache__/
-.env
 venv/
+__pycache__/
+*.pyc
+daily_sync.db
+.DS_Store
+credentials.json

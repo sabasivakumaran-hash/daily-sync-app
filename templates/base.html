@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- DataTables CSS -->
+    <!-- DataTables Bootstrap 5 CSS -->
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 
     <!-- Custom Stylesheet -->
@@ -92,10 +92,43 @@
 
     <!-- MAIN BODY CONTENT -->
     <main class="flex-grow-1">
-        {% block content %}{% endblock %}
+    <!-- FLASH MESSAGES CONTAINER -->
+    <div class="container-fluid px-md-4 pt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
+                {% if category == 'success' %}
+                <i class="fa-solid fa-circle-check me-2"></i>
+                {% elif category == 'danger' or category == 'error' %}
+                <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                {% else %}
+                <i class="fa-solid fa-circle-info me-2"></i>
+                {% endif %}
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- MAIN PAGE CONTENT -->
+    {% block content %}{% endblock %}
     </main>
 
     <!-- JS DEPENDENCIES -->
+    <!-- 1. jQuery (Required for DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+
+    <!-- 2. Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 3. DataTables Core & Bootstrap 5 Integration -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- 4. Dynamic Script Block for Child Templates -->
+    {% block scripts %}{% endblock %}
 </body>
 </html>

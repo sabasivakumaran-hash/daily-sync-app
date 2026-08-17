@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Daily Activity - Sri Ganesh Temple Society{% endblock %}
+{% block title %}Daily Activity - Temple Sync{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-3 px-md-4">
@@ -12,7 +12,7 @@
       <p class="text-muted small mb-0">Record and manage daily temple income and operational activities</p>
     </div>
     <button class="btn btn-success fw-semibold shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#entryFormCollapse" aria-expanded="false" aria-controls="entryFormCollapse">
-      <i class="bi bi-plus-lg me-1"></i> Add Daily Activity
+      <i class="fa-solid fa-plus me-1"></i> Add Daily Activity
     </button>
   </div>
 
@@ -22,9 +22,9 @@
       <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0 fw-bold">
           {% if editing_txn %}
-            <i class="bi bi-pencil-square me-2"></i>Edit Daily Activity #{{ editing_txn.daily_activity_id }}
+            <i class="fa-solid fa-pen-to-square me-2"></i>Edit Daily Activity #{{ editing_txn.daily_activity_id }}
           {% else %}
-            <i class="bi bi-plus-circle me-2"></i>Add Daily Activity
+            <i class="fa-solid fa-circle-plus me-2"></i>Add Daily Activity
           {% endif %}
         </h5>
         {% if editing_txn %}
@@ -70,13 +70,11 @@
               </select>
             </div>
 
-            <!-- Type -->
+            <!-- Type (Read-Only Display) -->
             <div class="col-md-3">
-              <label for="txn_type" class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
-              <select class="form-select fw-bold" id="txn_type" name="txn_type">
-                <option value="INCOME" {% if not editing_txn or editing_txn.txn_type == 'INCOME' %}selected{% endif %}>INCOME</option>
-                <option value="EXPENSE" {% if editing_txn and editing_txn.txn_type == 'EXPENSE' %}selected{% endif %}>EXPENSE</option>
-              </select>
+              <label for="txn_type_display" class="form-label fw-semibold">Type</label>
+              <input type="text" class="form-control fw-bold bg-light" id="txn_type_display" 
+                     value="{{ editing_txn.txn_type if editing_txn else 'INCOME' }}" readonly>
             </div>
 
             <!-- Name -->
@@ -134,10 +132,10 @@
           <!-- BUTTONS -->
           <div class="mt-4 text-end">
             <a href="{{ url_for('daily_activity_page') }}" class="btn btn-outline-secondary me-2 px-4">
-              <i class="bi bi-x-circle me-1"></i> Cancel
+              <i class="fa-solid fa-circle-xmark me-1"></i> Cancel
             </a>
             <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
-              <i class="bi bi-check-circle me-1"></i> Save
+              <i class="fa-solid fa-circle-check me-1"></i> Save
             </button>
           </div>
 
@@ -148,13 +146,13 @@
 
   <!-- TABLE -->
   <div class="card card-emerald shadow-sm">
-    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2">
       <h5 class="card-title mb-0 fw-bold">Daily Activity List</h5>
       <span class="badge bg-light text-dark fw-bold">{{ transactions|length }} Records</span>
     </div>
 
-    <div class="card-body p-0 table-responsive">
-      <table class="table table-hover align-middle mb-0">
+    <div class="card-body p-3 table-responsive">
+      <table id="dailyActivityTable" class="table table-hover align-middle mb-0 w-100">
         <thead>
           <tr>
             <th>Date</th>
@@ -166,7 +164,7 @@
             <th class="text-center">Qty</th>
             <th class="text-end">Total</th>
             <th>Status</th>
-            <th class="text-center">Actions</th>
+            <th class="text-center" style="width: 90px;">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -220,13 +218,9 @@
             <td class="text-center">
               <a href="{{ url_for('daily_activity_page', edit_id=txn.daily_activity_id) }}" 
                  class="btn btn-sm btn-outline-primary py-0 px-2" title="Edit Entry">
-                <i class="bi bi-pencil"></i> Edit
+                <i class="fa-solid fa-pen"></i> Edit
               </a>
             </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="10" class="text-center text-muted py-4">No daily activity records found.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -235,15 +229,16 @@
   </div>
 
 </div>
+{% endblock %}
 
-<!-- SCRIPT -->
+{% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const activitySelect = document.getElementById('activity_lookup_id');
     const unitPriceInput = document.getElementById('unit_price');
     const quantityInput = document.getElementById('quantity');
     const totalAmountInput = document.getElementById('total_amount');
-    const typeSelect = document.getElementById('txn_type');
+    const typeDisplay = document.getElementById('txn_type_display');
 
     function calculateTotal() {
       const price = parseFloat(unitPriceInput.value) || 0;
@@ -256,14 +251,14 @@
       const selectedOption = activitySelect.options[activitySelect.selectedIndex];
       if (selectedOption && selectedOption.value) {
         const defaultAmount = selectedOption.getAttribute('data-amount');
-        const txnType = selectedOption.getAttribute('data-type') || 'INCOME';
+        const defaultTxnType = selectedOption.getAttribute('data-type') || 'INCOME';
 
         if (defaultAmount && parseFloat(defaultAmount) > 0) {
           unitPriceInput.value = parseFloat(defaultAmount).toFixed(2);
         }
 
-        if (typeSelect) {
-          typeSelect.value = txnType;
+        if (typeDisplay) {
+          typeDisplay.value = defaultTxnType;
         }
         calculateTotal();
       }
@@ -275,6 +270,13 @@
 
     if (unitPriceInput) unitPriceInput.addEventListener('input', calculateTotal);
     if (quantityInput) quantityInput.addEventListener('input', calculateTotal);
+  });
+
+  $(document).ready(function() {
+    $('#dailyActivityTable').DataTable({
+      "pageLength": 25,
+      "order": []
+    });
   });
 </script>
 {% endblock %}

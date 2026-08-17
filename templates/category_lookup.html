@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Category List - Temple Sync{% endblock %}
+
 {% block content %}
 <div class="row g-4">
     <!-- PANEL 1: RECORD CATEGORY FORM (HIDDEN BY DEFAULT) -->
@@ -104,7 +106,10 @@
     $(document).ready(function() {
         $('#categoryTable').DataTable({
             "pageLength": 10,
-            "language": { "search": "_INPUT_", "searchPlaceholder": "Search categories..." }
+            "language": { 
+                "search": "_INPUT_", 
+                "searchPlaceholder": "Search categories..." 
+            }
         });
 
         $(document).on('click', '.edit-cat-btn', function() {

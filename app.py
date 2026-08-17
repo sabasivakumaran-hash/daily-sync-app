@@ -1,9 +1,10 @@
 import os
 import sqlite3
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 
 app = Flask(__name__)
+app.secret_key = 'temple_sync_secret_key_change_in_production'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, 'daily_sync.db')
@@ -131,12 +132,14 @@ def daily_activity_save():
             WHERE daily_activity_id = ?
         """, (txn_date, session_type, activity_lookup_id, person_name, 
               unit_price, quantity, total_amount, remarks, is_active, daily_activity_id))
+        flash(f'Daily Activity entry #{daily_activity_id} updated successfully!', 'success')
     else:
         cursor.execute("""
             INSERT INTO daily_activity 
             (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, remarks, is_active, updated_ts)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, remarks, is_active))
+        flash('New Daily Activity recorded successfully!', 'success')
 
     conn.commit()
     conn.close()
@@ -226,7 +229,7 @@ def dashboard_page():
     )
 
 # ---------------------------------------------------------
-# 4. REPORTS PAGE (INCOME & EXPENSE, FISCAL, ACTIVITY SUMMARY)
+# 4. REPORTS PAGE
 # ---------------------------------------------------------
 @app.route('/reports')
 def reports_page():
@@ -259,12 +262,10 @@ def reports_page():
     total_income_year = 0.0
     total_expense_year = 0.0
 
-    # Fiscal Report Variables
     matrix, category_subtotals = {}, {}
     monthly_grand_totals = {m: 0.0 for m in range(1, 13)}
     year_grand_total = 0.0
 
-    # Activity Summary Matrix Variables
     act_matrix = {}
     act_cat_subtotals = {}
     act_grand_totals = {
@@ -315,7 +316,6 @@ def reports_page():
             net_monthly_surplus[m] = income_monthly_totals[m] - expense_monthly_totals[m]
 
     if selected_report == 'activity_summary':
-        # Single-line 12-Month Itemized Activity Summary
         activity_rows = conn.execute("""
             SELECT 
                 c.category_name,
@@ -339,7 +339,6 @@ def reports_page():
             m_num = r['month_num']
             amt = float(r['total_amount'])
 
-            # Initialize Category level dictionaries
             if cat not in act_matrix:
                 act_matrix[cat] = {}
                 act_cat_subtotals[cat] = {
@@ -348,27 +347,22 @@ def reports_page():
                     'NET': {m: 0.0 for m in range(1, 14)}
                 }
 
-            # Initialize Activity level dictionary (Single Line per Activity)
             if act not in act_matrix[cat]:
                 act_matrix[cat][act] = {
                     'txn_type': t_type,
                     'months': {m: 0.0 for m in range(1, 14)}
                 }
 
-            # 1. Populate Activity Level Values (Index 13 represents Year Total)
             act_matrix[cat][act]['months'][m_num] += amt
             act_matrix[cat][act]['months'][13] += amt
             
-            # Net contribution calculation (+ for Income, - for Expense)
             net_amt = amt if t_type == 'INCOME' else -amt
 
-            # 2. Populate Category Subtotal Level
             act_cat_subtotals[cat][t_type][m_num] += amt
             act_cat_subtotals[cat][t_type][13] += amt
             act_cat_subtotals[cat]['NET'][m_num] += net_amt
             act_cat_subtotals[cat]['NET'][13] += net_amt
 
-            # 3. Populate Grand Total Level
             act_grand_totals[t_type][m_num] += amt
             act_grand_totals[t_type][13] += amt
             act_grand_totals['NET'][m_num] += net_amt
@@ -401,7 +395,7 @@ def reports_page():
     )
 
 # ---------------------------------------------------------
-# 5. MAINTENANCE & INSPECTION
+# 5. MAINTENANCE MODULE
 # ---------------------------------------------------------
 @app.route('/maintenance/category')
 def category_lookup_page():
@@ -418,7 +412,7 @@ def category_lookup_page():
 @app.route('/maintenance/category/save', methods=['POST'])
 def category_lookup_save():
     cat_id = request.form.get('category_lookup_id')
-    cat_name = request.form.get('category_name')
+    cat_name = request.form.get('category_name', '').strip()
     is_active = int(request.form.get('is_active', 1))
 
     conn = get_db()
@@ -426,8 +420,11 @@ def category_lookup_save():
     if cat_id:
         cursor.execute("UPDATE category_lookup SET category_name = ?, is_active = ? WHERE category_lookup_id = ?",
                        (cat_name, is_active, cat_id))
+        flash(f'Category "{cat_name}" updated successfully!', 'success')
     else:
         cursor.execute("INSERT INTO category_lookup (category_name, is_active) VALUES (?, ?)", (cat_name, is_active))
+        flash(f'New category "{cat_name}" created successfully!', 'success')
+        
     conn.commit()
     conn.close()
     return redirect(url_for('category_lookup_page'))
@@ -454,24 +451,28 @@ def activity_lookup_page():
 def activity_lookup_save():
     act_id = request.form.get('activity_lookup_id')
     cat_id = request.form.get('category_lookup_id')
-    act_name = request.form.get('activity_name')
+    act_name = request.form.get('activity_name', '').strip()
     default_amount = float(request.form.get('default_amount', 0.0))
     txn_type = request.form.get('txn_type', 'INCOME')
     is_active = int(request.form.get('is_active', 1))
 
     conn = get_db()
     cursor = conn.cursor()
+
     if act_id:
         cursor.execute("""
             UPDATE activity_lookup 
             SET category_lookup_id = ?, activity_name = ?, default_amount = ?, txn_type = ?, is_active = ? 
             WHERE activity_lookup_id = ?
-        """, (cat_id, act_name, default_amount, txn_type, act_id))
+        """, (cat_id, act_name, default_amount, txn_type, is_active, act_id))
+        flash(f'Activity "{act_name}" updated successfully!', 'success')
     else:
         cursor.execute("""
             INSERT INTO activity_lookup (category_lookup_id, activity_name, default_amount, txn_type, is_active) 
             VALUES (?, ?, ?, ?, ?)
         """, (cat_id, act_name, default_amount, txn_type, is_active))
+        flash(f'New activity "{act_name}" created successfully!', 'success')
+
     conn.commit()
     conn.close()
     return redirect(url_for('activity_lookup_page'))

@@ -1,0 +1,8 @@
+category_lookup_id,category_name,is_active
+1,DONATION,1
+2,GARLAND,1
+3,HUNDIAL,1
+4,MEMBERSHIP,1
+5,POOJA,1
+6,UTILITY,1
+7,VOID,1

@@ -1,282 +1,347 @@
 {% extends "base.html" %}
 
-{% block title %}Daily Activity - Temple Sync{% endblock %}
+{% block title %}Daily Activity Entry{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3 px-md-4">
+<style>
+  /* Custom styled pagination matching page theme */
+  .dataTables_wrapper .pagination .page-item.active .page-link {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+    color: #ffffff !important;
+  }
+  .dataTables_wrapper .pagination .page-link {
+    color: #198754;
+  }
+  .dataTables_wrapper .pagination .page-link:hover {
+    color: #146c43;
+    background-color: #e8f5e9;
+  }
+</style>
 
-  <!-- PAGE TITLE BAR -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container-fluid px-md-4 py-4">
+
+  <!-- TOP PAGE TITLE -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h3 class="fw-bold mb-0 text-success">Daily Activity Entry</h3>
-      <p class="text-muted small mb-0">Record and manage daily temple income and operational activities</p>
-    </div>
-    <button class="btn btn-success fw-semibold shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#entryFormCollapse" aria-expanded="false" aria-controls="entryFormCollapse">
-      <i class="fa-solid fa-plus me-1"></i> Add Daily Activity
-    </button>
-  </div>
-
-  <!-- ENTRY FORM PANEL -->
-  <div class="collapse {% if editing_txn %}show{% endif %} mb-4" id="entryFormCollapse">
-    <div class="card card-emerald shadow-sm">
-      <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0 fw-bold">
-          {% if editing_txn %}
-            <i class="fa-solid fa-pen-to-square me-2"></i>Edit Daily Activity #{{ editing_txn.daily_activity_id }}
-          {% else %}
-            <i class="fa-solid fa-circle-plus me-2"></i>Add Daily Activity
-          {% endif %}
-        </h5>
-        {% if editing_txn %}
-          <a href="{{ url_for('daily_activity_page') }}" class="btn btn-sm btn-outline-light">Cancel Edit</a>
-        {% endif %}
-      </div>
-      <div class="card-body">
-        <form action="{{ url_for('daily_activity_save') }}" method="POST" id="dailyActivityForm">
-          
-          <input type="hidden" name="daily_activity_id" value="{{ editing_txn.daily_activity_id if editing_txn else '' }}">
-
-          <div class="row g-3">
-            
-            <!-- Date -->
-            <div class="col-md-3">
-              <label for="txn_date" class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
-              <input type="date" class="form-control" id="txn_date" name="txn_date" 
-                     value="{{ editing_txn.txn_date if editing_txn else '' }}" required>
-            </div>
-
-            <!-- Session (AM/PM) -->
-            <div class="col-md-2">
-              <label for="session_type" class="form-label fw-semibold">AM/PM</label>
-              <select class="form-select" id="session_type" name="session_type">
-                <option value="AM" {% if not editing_txn or editing_txn.session_type == 'AM' %}selected{% endif %}>AM</option>
-                <option value="PM" {% if editing_txn and editing_txn.session_type == 'PM' %}selected{% endif %}>PM</option>
-              </select>
-            </div>
-
-            <!-- Activity Selection -->
-            <div class="col-md-4">
-              <label for="activity_lookup_id" class="form-label fw-semibold">Activity <span class="text-danger">*</span></label>
-              <select class="form-select" id="activity_lookup_id" name="activity_lookup_id" required>
-                <option value="" disabled {% if not editing_txn %}selected{% endif %}>-- Select Activity --</option>
-                {% for act in activities %}
-                  <option value="{{ act.activity_lookup_id }}" 
-                          data-amount="{{ act.default_amount or 0.0 }}"
-                          data-type="{{ act.txn_type or 'INCOME' }}"
-                          {% if editing_txn and editing_txn.activity_lookup_id == act.activity_lookup_id %}selected{% endif %}>
-                    {{ act.category_name }} &bull; {{ act.activity_name }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <!-- Type (Read-Only Display) -->
-            <div class="col-md-3">
-              <label for="txn_type_display" class="form-label fw-semibold">Type</label>
-              <input type="text" class="form-control fw-bold bg-light" id="txn_type_display" 
-                     value="{{ editing_txn.txn_type if editing_txn else 'INCOME' }}" readonly>
-            </div>
-
-            <!-- Name -->
-            <div class="col-md-3">
-              <label for="person_name" class="form-label fw-semibold">Name</label>
-              <input type="text" class="form-control" id="person_name" name="person_name" 
-                     list="namesDatalist" placeholder="Search or enter name..." 
-                     value="{{ editing_txn.person_name if editing_txn else '' }}">
-              <datalist id="namesDatalist">
-                {% for name in existing_names %}
-                  <option value="{{ name }}"></option>
-                {% endfor %}
-              </datalist>
-            </div>
-
-            <!-- Unit Price -->
-            <div class="col-md-3">
-              <label for="unit_price" class="form-label fw-semibold">Unit Price ($)</label>
-              <input type="number" step="0.01" min="0" class="form-control text-end" id="unit_price" name="unit_price" 
-                     value="{{ editing_txn.unit_price if editing_txn else '0.00' }}">
-            </div>
-
-            <!-- Quantity -->
-            <div class="col-md-2">
-              <label for="quantity" class="form-label fw-semibold">Quantity</label>
-              <input type="number" min="1" class="form-control text-center" id="quantity" name="quantity" 
-                     value="{{ editing_txn.quantity if editing_txn else '1' }}">
-            </div>
-
-            <!-- Total Amount -->
-            <div class="col-md-4">
-              <label for="total_amount" class="form-label fw-semibold">Total Amount ($)</label>
-              <input type="number" step="0.01" class="form-control text-end fw-bold text-success" id="total_amount" name="total_amount" 
-                     value="{{ editing_txn.total_amount if editing_txn else '0.00' }}" readonly>
-            </div>
-
-            <!-- Status -->
-            <div class="col-md-4">
-              <label for="is_active" class="form-label fw-semibold">Record Status</label>
-              <select class="form-select" id="is_active" name="is_active">
-                <option value="1" {% if not editing_txn or editing_txn.is_active in [1, '1', True] %}selected{% endif %}>Active</option>
-                <option value="0" {% if editing_txn and editing_txn.is_active in [0, '0', False] %}selected{% endif %}>Inactive</option>
-              </select>
-            </div>
-
-            <!-- Remarks -->
-            <div class="col-md-8">
-              <label for="remarks" class="form-label fw-semibold">Remarks / Notes</label>
-              <input type="text" class="form-control" id="remarks" name="remarks" 
-                     placeholder="Additional details..." value="{{ editing_txn.remarks if editing_txn else '' }}">
-            </div>
-
-          </div>
-
-          <!-- BUTTONS -->
-          <div class="mt-4 text-end">
-            <a href="{{ url_for('daily_activity_page') }}" class="btn btn-outline-secondary me-2 px-4">
-              <i class="fa-solid fa-circle-xmark me-1"></i> Cancel
-            </a>
-            <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
-              <i class="fa-solid fa-circle-check me-1"></i> Save
-            </button>
-          </div>
-
-        </form>
-      </div>
+      <h2 class="h3 font-sans fw-bold mb-0 text-dark">Daily Activity Entry</h2>
+      <p class="text-muted small mb-0">Record and manage daily transactions and session activities.</p>
     </div>
   </div>
 
-  <!-- TABLE -->
-  <div class="card card-emerald shadow-sm">
-    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2">
-      <h5 class="card-title mb-0 fw-bold">Daily Activity List</h5>
-      <span class="badge bg-light text-dark fw-bold">{{ transactions|length }} Records</span>
-    </div>
+  <!-- PANEL 1: ADD / EDIT FORM (Hidden by default unless editing_txn or ?add=true exists) -->
+  <div class="row g-4 mb-4 {% if not editing_txn and request.args.get('add') != 'true' %}d-none{% endif %}" id="formPanel">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0 font-sans fw-bold text-dark">
+            {% if editing_txn %}
+              <i class="fa-solid fa-pen-to-square me-2 text-primary"></i>Edit Activity Entry
+            {% else %}
+              <i class="fa-solid fa-circle-plus me-2 text-success"></i>Add Daily Activity
+            {% endif %}
+          </h5>
+          <button type="button" class="btn-close" id="closeFormBtn" aria-label="Close"></button>
+        </div>
 
-    <div class="card-body p-3 table-responsive">
-      <table id="dailyActivityTable" class="table table-hover align-middle mb-0 w-100">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>AM/PM</th>
-            <th>Name</th>
-            <th>Activity (Category)</th>
-            <th>Type</th>
-            <th class="text-end">Unit Price</th>
-            <th class="text-center">Qty</th>
-            <th class="text-end">Total</th>
-            <th>Status</th>
-            <th class="text-center" style="width: 90px;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for txn in transactions %}
-          <tr>
-            <td>
-              {% if txn.txn_date %}
-                {% set date_parts = txn.txn_date.split('-') %}
-                {% if date_parts|length == 3 %}
-                  {{ date_parts[1] }}/{{ date_parts[2] }}/{{ date_parts[0] }}
-                {% else %}
-                  {{ txn.txn_date }}
-                {% endif %}
-              {% else %}
-                -
-              {% endif %}
-            </td>
-            <td>
-              <span class="badge bg-light text-dark border border-secondary fw-semibold">
-                {{ txn.session_type if txn.session_type else 'AM' }}
-              </span>
-            </td>
-            <td>{{ txn.person_name or '-' }}</td>
-            <td>
-              <span class="fw-bold text-dark">{{ txn.activity_name or '[Unlinked]' }}</span>
-              {% if txn.category_name %}<br><small class="text-muted">({{ txn.category_name }})</small>{% endif %}
-            </td>
-            <td>
-              {% if txn.txn_type == 'EXPENSE' %}
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">EXPENSE</span>
-              {% else %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">INCOME</span>
-              {% endif %}
-            </td>
-            <td class="text-end font-monospace">${{ "{:,.2f}".format(txn.unit_price or 0.0) }}</td>
-            <td class="text-center fw-semibold">{{ txn.quantity }}</td>
-            <td class="text-end font-monospace fw-bold">
-              {% if txn.txn_type == 'EXPENSE' %}
-                <span class="text-danger">-${{ "{:,.2f}".format(txn.total_amount) }}</span>
-              {% else %}
-                <span class="text-success">+${{ "{:,.2f}".format(txn.total_amount) }}</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if txn.is_active == 1 or txn.is_active == '1' or txn.is_active == True %}
-                <span class="badge bg-success">Active</span>
-              {% else %}
-                <span class="badge bg-secondary">Inactive</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              <a href="{{ url_for('daily_activity_page', edit_id=txn.daily_activity_id) }}" 
-                 class="btn btn-sm btn-outline-primary py-0 px-2" title="Edit Entry">
-                <i class="fa-solid fa-pen"></i> Edit
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+        <div class="card-body p-4">
+          <form action="{{ url_for('daily_activity_save') }}" method="POST">
+            <!-- Hidden ID Field -->
+            {% if editing_txn %}
+              <input type="hidden" name="daily_activity_id" value="{{ editing_txn.daily_activity_id }}">
+            {% endif %}
+
+            <div class="row g-3 align-items-end">
+              
+              <!-- 1. TRANSACTION DATE -->
+              <div class="col-md-2">
+                <label for="txn_date" class="form-label small fw-bold text-muted">Transaction Date</label>
+                <input type="date" 
+                       class="form-control" 
+                       id="txn_date" 
+                       name="txn_date" 
+                       value="{{ editing_txn.txn_date if editing_txn else '' }}" 
+                       required>
+              </div>
+
+              <!-- 2. SESSION -->
+              <div class="col-md-2">
+                <label for="session_type" class="form-label small fw-bold text-muted">Session</label>
+                <select class="form-select" id="session_type" name="session_type" required>
+                  <option value="AM" {% if editing_txn and editing_txn.session_type == 'AM' %}selected{% endif %}>AM</option>
+                  <option value="PM" {% if editing_txn and editing_txn.session_type == 'PM' %}selected{% endif %}>PM</option>
+                  <option value="EVENING" {% if editing_txn and editing_txn.session_type == 'EVENING' %}selected{% endif %}>EVENING</option>
+                </select>
+              </div>
+
+              <!-- 3. ACTIVITY DROPDOWN -->
+              <div class="col-md-3">
+                <label for="activity_lookup_id" class="form-label small fw-bold text-muted">Activity</label>
+                <select class="form-select" id="activity_lookup_id" name="activity_lookup_id" required>
+                  <option value="" data-price="0.00" data-type="INCOME">-- Select Activity --</option>
+                  {% for act in activities %}
+                    <option value="{{ act.activity_lookup_id }}" 
+                            data-price="{{ act.default_amount }}" 
+                            data-type="{{ act.txn_type }}"
+                            {% if editing_txn and editing_txn.activity_lookup_id == act.activity_lookup_id %}selected{% endif %}>
+                      {{ act.category_name }} - {{ act.activity_name }} ({{ act.txn_type }})
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- 4. NAME (EXPANDED WIDTH) -->
+              <div class="col-md-5">
+                <label for="person_name" class="form-label small fw-bold text-muted">Name</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="person_name" 
+                       name="person_name" 
+                       list="names_datalist" 
+                       value="{{ editing_txn.person_name if editing_txn else '' }}" 
+                       placeholder="Type or select name...">
+                <datalist id="names_datalist">
+                  {% for name in existing_names %}
+                    <option value="{{ name }}">
+                  {% endfor %}
+                </datalist>
+              </div>
+
+              <!-- 5. UNIT PRICE -->
+              <div class="col-md-2">
+                <label for="unit_price" class="form-label small fw-bold text-muted">Unit Price ($)</label>
+                <input type="number" 
+                       step="0.01" 
+                       class="form-control" 
+                       id="unit_price" 
+                       name="unit_price" 
+                       value="{{ editing_txn.unit_price if editing_txn else '0.00' }}" 
+                       required>
+              </div>
+
+              <!-- 6. QUANTITY -->
+              <div class="col-md-2">
+                <label for="quantity" class="form-label small fw-bold text-muted">Quantity</label>
+                <input type="number" 
+                       min="1" 
+                       class="form-control" 
+                       id="quantity" 
+                       name="quantity" 
+                       value="{{ editing_txn.quantity if editing_txn else '1' }}" 
+                       required>
+              </div>
+
+              <!-- 7. TOTAL ($) -->
+              <div class="col-md-2">
+                <label for="total_amount" class="form-label small fw-bold text-muted">Total ($)</label>
+                <input type="number" 
+                       step="0.01" 
+                       class="form-control bg-light fw-bold" 
+                       id="total_amount" 
+                       name="total_amount" 
+                       value="{{ editing_txn.total_amount if editing_txn else '0.00' }}" 
+                       readonly>
+              </div>
+
+              <!-- 8. STATUS -->
+              <div class="col-md-2">
+                <label for="is_active" class="form-label small fw-bold text-muted">Status</label>
+                <select class="form-select" id="is_active" name="is_active" required>
+                  <option value="1" {% if not editing_txn or editing_txn.is_active == 1 %}selected{% endif %}>Active</option>
+                  <option value="0" {% if editing_txn and editing_txn.is_active == 0 %}selected{% endif %}>Inactive</option>
+                </select>
+              </div>
+
+              <!-- 9. READ-ONLY TYPE BADGE -->
+              <div class="col-md-2">
+                <label class="form-label small fw-bold text-muted d-block">Type</label>
+                <div class="form-control-plaintext pt-1">
+                  <span id="txn_type_badge" class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-bold">
+                    INCOME
+                  </span>
+                </div>
+              </div>
+
+              <!-- 10. REMARKS / NOTES -->
+              <div class="col-md-8">
+                <label for="remarks" class="form-label small fw-bold text-muted">Remarks / Notes</label>
+                <input type="text" class="form-control" id="remarks" name="remarks" value="{{ editing_txn.remarks if editing_txn else '' }}" placeholder="Optional notes...">
+              </div>
+
+              <!-- ACTION BUTTONS (EQUAL WIDTH: CANCEL WITH ICON + GREEN SAVE) -->
+              <div class="col-12 d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+                <a href="{{ url_for('daily_activity_page') }}" id="cancelFormBtn" class="btn btn-outline-secondary px-4 fw-bold shadow-sm d-inline-flex align-items-center justify-content-center" style="min-width: 120px;">
+                  <i class="fa-solid fa-xmark me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success px-4 fw-bold shadow-sm" style="min-width: 120px;">
+                  <i class="fa-solid fa-floppy-disk me-1"></i>{% if editing_txn %}Update{% else %}Save{% endif %}
+                </button>
+              </div>
+
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: TRANSACTIONS LIST TABLE -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0 font-sans fw-bold text-dark">
+            <i class="fa-solid fa-list me-2 text-secondary"></i>Daily Activity List
+          </h5>
+          <!-- ADD DAILY ACTIVITY BUTTON (CLEAN ROUTE REDIRECT) -->
+          <a href="{{ url_for('daily_activity_page') }}?add=true" class="btn btn-outline-success btn-sm fw-bold shadow-sm">
+            <i class="fa-solid fa-plus me-1"></i>Add Daily Activity
+          </a>
+        </div>
+
+        <div class="card-body p-3">
+          <div class="table-responsive">
+            <table id="dailyActivityTable" class="table table-hover align-middle w-100">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Session</th>
+                  <th>Name</th>
+                  <th>Category / Activity</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-center">Status</th>
+                  <th class="text-center">Type</th>
+                  <th class="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for txn in transactions %}
+                  <tr class="{% if not txn.is_active %}table-secondary opacity-50{% endif %}">
+                    <td>{{ txn.txn_date }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ txn.session_type }}</span></td>
+                    <td class="fw-semibold">{{ txn.person_name or '-' }}</td>
+                    <td>
+                      <div class="small text-muted">{{ txn.category_name }}</div>
+                      <div class="fw-bold">{{ txn.activity_name }}</div>
+                    </td>
+                    <td class="text-end font-monospace fw-bold">{{ txn.total_amount | currency }}</td>
+                    <td class="text-center">
+                      {% if txn.is_active %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                      {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      {% if txn.txn_type == 'EXPENSE' %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">EXPENSE</span>
+                      {% else %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">INCOME</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      <a href="{{ url_for('daily_activity_page', edit_id=txn.daily_activity_id) }}" 
+                         class="btn btn-sm btn-light border shadow-sm text-secondary" 
+                         title="Edit Record">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
 </div>
-{% endblock %}
 
-{% block scripts %}
+<!-- JAVASCRIPT FOR DATATABLE, FORM SCROLL & AUTO-CALCULATIONS -->
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const activitySelect = document.getElementById('activity_lookup_id');
-    const unitPriceInput = document.getElementById('unit_price');
-    const quantityInput = document.getElementById('quantity');
-    const totalAmountInput = document.getElementById('total_amount');
-    const typeDisplay = document.getElementById('txn_type_display');
-
-    function calculateTotal() {
-      const price = parseFloat(unitPriceInput.value) || 0;
-      const qty = parseInt(quantityInput.value) || 1;
-      totalAmountInput.value = (price * qty).toFixed(2);
-    }
-
-    function updateActivityDetails() {
-      if (!activitySelect) return;
-      const selectedOption = activitySelect.options[activitySelect.selectedIndex];
-      if (selectedOption && selectedOption.value) {
-        const defaultAmount = selectedOption.getAttribute('data-amount');
-        const defaultTxnType = selectedOption.getAttribute('data-type') || 'INCOME';
-
-        if (defaultAmount && parseFloat(defaultAmount) > 0) {
-          unitPriceInput.value = parseFloat(defaultAmount).toFixed(2);
-        }
-
-        if (typeDisplay) {
-          typeDisplay.value = defaultTxnType;
-        }
-        calculateTotal();
-      }
-    }
-
-    if (activitySelect) {
-      activitySelect.addEventListener('change', updateActivityDetails);
-    }
-
-    if (unitPriceInput) unitPriceInput.addEventListener('input', calculateTotal);
-    if (quantityInput) quantityInput.addEventListener('input', calculateTotal);
-  });
-
-  $(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function () {
+  // Initialize DataTables with 10 rows default & green pagination styling
+  if (window.jQuery && $.fn.DataTable) {
     $('#dailyActivityTable').DataTable({
-      "pageLength": 25,
-      "order": []
+      order: [], // Keeps backend SQL order
+      pageLength: 10,
+      lengthMenu: [10, 25, 50, 100],
+      responsive: true,
+      pagingType: 'simple_numbers', // Enables Previous, 1 2 3..., Next
+      columnDefs: [
+        { orderable: false, targets: -1 } // Disable sorting on Action column
+      ]
     });
-  });
+  }
+
+  const formPanel = document.getElementById('formPanel');
+  const closeFormBtn = document.getElementById('closeFormBtn');
+  
+  const actSelect = document.getElementById('activity_lookup_id');
+  const unitPriceInput = document.getElementById('unit_price');
+  const qtyInput = document.getElementById('quantity');
+  const totalAmtInput = document.getElementById('total_amount');
+  const badge = document.getElementById('txn_type_badge');
+  const txnDateInput = document.getElementById('txn_date');
+
+  // Auto-scroll to form if adding or editing
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('add') === 'true' || urlParams.has('edit_id')) {
+    if (formPanel) {
+      formPanel.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  // Set default date to today if empty
+  if (txnDateInput && !txnDateInput.value) {
+    txnDateInput.value = new Date().toISOString().split('T')[0];
+  }
+
+  if (closeFormBtn) {
+    closeFormBtn.addEventListener('click', function() {
+      formPanel.classList.add('d-none');
+    });
+  }
+
+  // Update Badge and Defaults on Activity Selection
+  function updateActivityDetails() {
+    const selectedOpt = actSelect.options[actSelect.selectedIndex];
+    if (selectedOpt && selectedOpt.value) {
+      const price = parseFloat(selectedOpt.getAttribute('data-price')) || 0;
+      const type = selectedOpt.getAttribute('data-type') || 'INCOME';
+      
+      {% if not editing_txn %}
+        unitPriceInput.value = price.toFixed(2);
+      {% endif %}
+
+      badge.textContent = type;
+      if (type === 'EXPENSE') {
+        badge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 fw-bold';
+      } else {
+        badge.className = 'badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-bold';
+      }
+    } else {
+      badge.textContent = 'INCOME';
+      badge.className = 'badge bg-light text-secondary border px-3 py-2 fw-bold';
+    }
+    calcTotal();
+  }
+
+  function calcTotal() {
+    const uPrice = parseFloat(unitPriceInput.value) || 0;
+    const qty = parseInt(qtyInput.value) || 1;
+    totalAmtInput.value = (uPrice * qty).toFixed(2);
+  }
+
+  if (actSelect) actSelect.addEventListener('change', updateActivityDetails);
+  if (unitPriceInput) unitPriceInput.addEventListener('input', calcTotal);
+  if (qtyInput) qtyInput.addEventListener('input', calcTotal);
+
+  // Initialize state
+  if (actSelect && actSelect.value) {
+    updateActivityDetails();
+  }
+});
 </script>
 {% endblock %}

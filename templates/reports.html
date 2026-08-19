@@ -77,7 +77,7 @@
                             </div>
                         {% endif %}
 
-                        <!-- Date Range Filters for Income & Expense AND Activity Summary Reports -->
+                        <!-- Date Range Filters -->
                         {% if selected_report in ['income_expense', 'activity_summary'] %}
                         <div class="col-auto ms-2">
                             <label class="col-form-label fw-bold">Start Date</label>
@@ -134,9 +134,7 @@
                         <span class="badge bg-light text-dark border">Period: {{ start_date }} to {{ end_date }}</span>
                     </div>
 
-                    <!-- --------------------------------------------------------- -->
-                    <!-- 1 & 2) CATEGORY MATRIX TABLE (INCOME & EXPENSE / FISCAL)  -->
-                    <!-- --------------------------------------------------------- -->
+                    <!-- 1 & 2) CATEGORY MATRIX TABLE (INCOME & EXPENSE / FISCAL) -->
                     {% if selected_report in ['income_expense', 'fiscal_report'] %}
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm align-middle text-center small" id="reportTable">
@@ -149,7 +147,6 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                
                                 <!-- INCOME HEADER -->
                                 <tr class="table-success fw-bold text-start">
                                     <td colspan="14">INCOME</td>
@@ -232,9 +229,7 @@
                     </div>
                     {% endif %}
 
-                    <!-- --------------------------------------------------------- -->
-                    <!-- 3) CLEAN 12-MONTH ACTIVITY PERFORMANCE MATRIX            -->
-                    <!-- --------------------------------------------------------- -->
+                    <!-- 3) CLEAN 12-MONTH ACTIVITY PERFORMANCE MATRIX -->
                     {% if selected_report == 'activity_summary' %}
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm align-middle text-center small" id="reportTable">
@@ -257,22 +252,22 @@
                                     </tr>
 
                                     {% for act, act_data in acts.items() %}
-                                        {% set t_type = act_data['txn_type'] %}
+                                        {% set is_inc = act_data['is_income'] %}
                                         {% set m_vals = act_data['months'] %}
                                         
-                                        <!-- Single Activity Row (Skipped if Year Total is 0) -->
+                                        <!-- Single Activity Row -->
                                         {% if m_vals[13] > 0 %}
                                         <tr>
                                             <td class="text-start ps-4 fw-semibold text-secondary">
                                                 &bull; {{ act }} 
-                                                {% if t_type == 'EXPENSE' %}
+                                                {% if is_inc == 0 %}
                                                     <span class="badge bg-danger-subtle text-danger border border-danger-subtle float-end">EXPENSE</span>
                                                 {% else %}
                                                     <span class="badge bg-success-subtle text-success border border-success-subtle float-end">INCOME</span>
                                                 {% endif %}
                                             </td>
                                             {% for m in range(1, 14) %}
-                                                <td class="{% if m == 13 %}fw-bold{% endif %} {% if t_type == 'EXPENSE' %}text-danger{% else %}text-success{% endif %}">
+                                                <td class="{% if m == 13 %}fw-bold{% endif %} {% if is_inc == 0 %}text-danger{% else %}text-success{% endif %}">
                                                     {% if m_vals[m] > 0 %}${{ "{:,.2f}".format(m_vals[m]) }}{% else %}-{% endif %}
                                                 </td>
                                             {% endfor %}
@@ -306,7 +301,7 @@
                                     </tr>
                                     {% endif %}
 
-                                    <!-- Final Category Net Line in Dark Emerald Green -->
+                                    <!-- Net Category Line -->
                                     <tr class="fw-bold border-bottom border-dark border-2" style="background-color: #e8f5e9;">
                                         <td class="text-start text-uppercase ps-3" style="color: #0f5132;">
                                             <i class="fa-solid fa-calculator me-1"></i>Net {{ cat }}
@@ -342,7 +337,7 @@
                                 </tr>
                                 {% endif %}
 
-                                <!-- Final Net Grand Total in Deep Emerald Green Header/Banner Style -->
+                                <!-- Net Grand Total Banner -->
                                 <tr style="background-color: #0f5132; color: #ffffff;" class="fs-6">
                                     <td class="text-start text-uppercase fw-bold">Net Grand Total</td>
                                     {% for m in range(1, 14) %}

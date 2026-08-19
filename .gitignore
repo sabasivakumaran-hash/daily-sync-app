@@ -4,3 +4,6 @@ __pycache__/
 daily_sync.db
 .DS_Store
 credentials.json
+
+*.db
+daily_sync.db

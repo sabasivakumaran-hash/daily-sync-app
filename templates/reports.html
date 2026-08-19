@@ -22,7 +22,7 @@
                     <div class="list-group list-group-flush gap-1">
                         
                         <!-- 1) Income & Expense -->
-                        <a href="{{ url_for('reports_page', report_type='income_expense', year=selected_year) }}"
+                        <a href="{{ url_for('reports_page', report_type='income_expense', year=selected_year, start_date=start_date, end_date=end_date) }}"
                            class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'income_expense' %}active bg-success text-white{% else %}text-dark{% endif %}">
                             <i class="fa-solid fa-table-cells me-2"></i>Income & Expense
                         </a>
@@ -34,7 +34,7 @@
                         </a>
                         
                         <!-- 3) Activity Summary -->
-                        <a href="{{ url_for('reports_page', report_type='activity_summary', year=selected_year) }}"
+                        <a href="{{ url_for('reports_page', report_type='activity_summary', year=selected_year, start_date=start_date, end_date=end_date) }}"
                            class="list-group-item list-group-item-action rounded border-0 py-2.5 fw-semibold {% if selected_report == 'activity_summary' %}active bg-success text-white{% else %}text-dark{% endif %}">
                             <i class="fa-solid fa-list-check me-2"></i>Activity Summary
                         </a>
@@ -77,8 +77,8 @@
                             </div>
                         {% endif %}
 
-                        <!-- Date Range Filters for Income & Expense Report -->
-                        {% if selected_report == 'income_expense' %}
+                        <!-- Date Range Filters for Income & Expense AND Activity Summary Reports -->
+                        {% if selected_report in ['income_expense', 'activity_summary'] %}
                         <div class="col-auto ms-2">
                             <label class="col-form-label fw-bold">Start Date</label>
                         </div>
@@ -123,7 +123,7 @@
                     <div class="text-center mb-4">
                         <h4 class="fw-bold mb-1">SRI GANESH TEMPLE SOCIETY OF B.C.</h4>
                         <p class="text-muted small mb-1">3525 Fraser Street, Vancouver, BC, V5V 4C5, CANADA | Tel. 604 879 3505</p>
-                        <p class="text-muted small mb-2">Email: sriganeshtemplevancouverbc@gmail.com</p>
+                        <p class="text-muted small mb-1">Email: sriganeshtemplevancouverbc@gmail.com</p>
                         <p class="text-muted small mb-3">Incorporation #: S39361 &nbsp;|&nbsp; Charity #: 86957 1026 RR0001</p>
                         
                         <h5 class="fw-bold text-success text-uppercase mb-1">
@@ -233,7 +233,7 @@
                     {% endif %}
 
                     <!-- --------------------------------------------------------- -->
-                    <!-- 3) CLEAN 12-MONTH ACTIVITY PERFORMANCE MATRIX             -->
+                    <!-- 3) CLEAN 12-MONTH ACTIVITY PERFORMANCE MATRIX            -->
                     <!-- --------------------------------------------------------- -->
                     {% if selected_report == 'activity_summary' %}
                     <div class="table-responsive">

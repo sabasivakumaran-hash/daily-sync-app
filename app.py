@@ -19,6 +19,32 @@ def get_db():
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
+# ---------------------------------------------------------
+# DATE PARSER HELPER
+# ---------------------------------------------------------
+def parse_date_components(date_str):
+    """Normalizes any incoming date string (MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD) into YYYY-MM-DD."""
+    if not date_str:
+        return None
+    date_str = str(date_str).strip()
+    try:
+        if '/' in date_str:
+            parts = date_str.split('/')
+            if len(parts) == 3:
+                m, d, y = int(parts[0]), int(parts[1]), int(parts[2])
+                return f"{y:04d}-{m:02d}-{d:02d}"
+        elif '-' in date_str:
+            parts = date_str.split('-')
+            if len(parts) == 3:
+                if len(parts[0]) == 4:
+                    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                else:
+                    m, d, y = int(parts[0]), int(parts[1]), int(parts[2])
+                return f"{y:04d}-{m:02d}-{d:02d}"
+    except (ValueError, IndexError):
+        pass
+    return None
+
 # Jinja template filter for thousands currency formatting ($131,863.54)
 @app.template_filter('currency')
 def currency_filter(value):
@@ -168,7 +194,6 @@ def dashboard_page():
 
     available_years = [r['year'] for r in years_rows if r['year']]
     
-    # Default to requested year -> most recent year with data -> current year
     selected_year = request.args.get('year')
     if not selected_year:
         selected_year = available_years[0] if available_years else current_year_str
@@ -185,7 +210,7 @@ def dashboard_page():
         END) = ?
     """
 
-    # 1. KPI Totals (Handles both 'income'/'INCOME' and 'expense'/'EXPENSE')
+    # 1. KPI Totals
     kpi = conn.execute(f"""
         SELECT 
             COALESCE(SUM(CASE WHEN LOWER(COALESCE(a.txn_type, 'income')) = 'income' THEN t.total_amount ELSE 0 END), 0) as total_income,
@@ -199,7 +224,7 @@ def dashboard_page():
     total_expense = float(kpi['total_expense']) if kpi and kpi['total_expense'] else 0.0
     net_surplus = total_income - total_expense
 
-    # 2. Monthly Breakdown (Handles single-digit months like '1/26/2026')
+    # 2. Monthly Breakdown
     monthly_rows = conn.execute(f"""
         SELECT 
             CASE 
@@ -259,8 +284,9 @@ def dashboard_page():
         cat_labels=cat_labels,
         cat_values=cat_values
     )
+
 # ---------------------------------------------------------
-# 4. REPORTS PAGE
+# 4. REPORTS PAGE (WITH DATE RANGE FILTER FIX)
 # ---------------------------------------------------------
 @app.route('/reports')
 def reports_page():
@@ -269,7 +295,7 @@ def reports_page():
     
     selected_report = request.args.get('report_type', 'income_expense')
 
-    # Extract 4-digit year (CCYY) handling M/D/CCYY, MM/DD/CCYY, and YYYY-MM-DD
+    # Extract 4-digit year dropdown options
     years_rows = conn.execute("""
         SELECT DISTINCT 
             CASE 
@@ -291,21 +317,29 @@ def reports_page():
     if current_year_str not in available_years:
         available_years.insert(0, current_year_str)
 
-    start_date = request.args.get('start_date', f"{selected_year}-01-01")
-    end_date = request.args.get('end_date', f"{selected_year}-12-31")
+    # Extract and parse start_date and end_date into normalized YYYY-MM-DD
+    start_date_raw = request.args.get('start_date')
+    end_date_raw = request.args.get('end_date')
 
-    # SQL helper clause for isolating CCYY year
-    year_clause = """
-        (CASE 
-            WHEN t.txn_date LIKE '%/%/____' THEN substr(t.txn_date, -4)
-            WHEN t.txn_date LIKE '____-__-__%' THEN substr(t.txn_date, 1, 4)
-            ELSE strftime('%Y', t.txn_date)
-        END) = ?
+    start_date = parse_date_components(start_date_raw) or f"{selected_year}-01-01"
+    end_date = parse_date_components(end_date_raw) or f"{selected_year}-12-31"
+
+    # SQL expression converting any stored date (M/D/YYYY or YYYY-MM-DD) into YYYY-MM-DD for SQL comparison
+    iso_date_expr = """
+        CASE 
+            WHEN t.txn_date LIKE '%/%/____' THEN 
+                printf('%04d-%02d-%02d', 
+                    CAST(substr(t.txn_date, -4) AS INTEGER),
+                    CAST(substr(t.txn_date, 1, instr(t.txn_date, '/') - 1) AS INTEGER),
+                    CAST(substr(t.txn_date, instr(t.txn_date, '/') + 1, instr(substr(t.txn_date, instr(t.txn_date, '/') + 1), '/') - 1) AS INTEGER)
+                )
+            WHEN t.txn_date LIKE '____-__-__%' THEN substr(t.txn_date, 1, 10)
+            ELSE t.txn_date
+        END
     """
 
     # Data structures
-    income_categories = {}
-    expense_categories = {}
+    income_categories, expense_categories = {}, {}
     income_monthly_totals = {m: 0.0 for m in range(1, 13)}
     expense_monthly_totals = {m: 0.0 for m in range(1, 13)}
     net_monthly_surplus = {m: 0.0 for m in range(1, 13)}
@@ -317,14 +351,14 @@ def reports_page():
     monthly_grand_totals = {m: 0.0 for m in range(1, 13)}
     year_grand_total = 0.0
 
-    act_matrix = {}
-    act_cat_subtotals = {}
+    act_matrix, act_cat_subtotals = {}, {}
     act_grand_totals = {
         'INCOME': {m: 0.0 for m in range(1, 14)},
         'EXPENSE': {m: 0.0 for m in range(1, 14)},
         'NET': {m: 0.0 for m in range(1, 14)}
     }
 
+    # 1. Income & Expense / Fiscal Report
     if selected_report in ['income_expense', 'fiscal_report']:
         cat_rows = conn.execute(f"""
             SELECT 
@@ -341,10 +375,10 @@ def reports_page():
             FROM daily_activity t
             JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
             JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-            WHERE t.is_active = 1 AND {year_clause}
+            WHERE t.is_active = 1 AND {iso_date_expr} BETWEEN ? AND ?
             GROUP BY c.category_name, txn_type, month_num
             ORDER BY c.category_name ASC
-        """, (selected_year,)).fetchall()
+        """, (start_date, end_date)).fetchall()
 
         for r in cat_rows:
             cat = r['category_name'] if r['category_name'] else 'UNASSIGNED'
@@ -374,6 +408,7 @@ def reports_page():
         for m in range(1, 13):
             net_monthly_surplus[m] = income_monthly_totals[m] - expense_monthly_totals[m]
 
+    # 2. Activity Performance Matrix / Activity Summary Report
     if selected_report == 'activity_summary':
         activity_rows = conn.execute(f"""
             SELECT 
@@ -391,10 +426,10 @@ def reports_page():
             FROM daily_activity t
             JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
             JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-            WHERE t.is_active = 1 AND {year_clause}
+            WHERE t.is_active = 1 AND {iso_date_expr} BETWEEN ? AND ?
             GROUP BY c.category_name, a.activity_name, txn_type, month_num
             ORDER BY c.category_name ASC, a.activity_name ASC
-        """, (selected_year,)).fetchall()
+        """, (start_date, end_date)).fetchall()
 
         for r in activity_rows:
             cat = r['category_name'] if r['category_name'] else 'UNASSIGNED'

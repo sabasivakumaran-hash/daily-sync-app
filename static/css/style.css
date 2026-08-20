@@ -1,38 +1,52 @@
 /* ==========================================
-   1. GLOBAL & BASE LAYOUT (OPTION B: MEDIUM EMERALD)
+   1. GLOBAL VARIABLES & BASE LAYOUT
    ========================================== */
+:root {
+  /* Brand Emerald/Green Palette */
+  --primary-green: #2d6a4f;       /* Header / Main Buttons */
+  --primary-green-dark: #1b4332;  /* Deep Emerald Accent */
+  --accent-green: #40916c;        /* Borders / Highlights */
+  
+  /* Row & Background Tints */
+  --row-alt-bg: #e8f5e9;          /* Alternating Row Tint */
+  --row-hover-bg: #c8e6c9;        /* Hover Row Highlight */
+  --bg-main: #f8faf8;             /* Body Background */
+  --surface-card: #ffffff;        /* Cards / Modals */
+  --border-color: #e0e0e0;
+}
+
 body {
-    background-color: #f8faf8;
+    background-color: var(--bg-main);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
 
-/* Medium Emerald Header Banner */
+/* Header Banner */
 .bg-temple-header {
-    background-color: #2d6a4f;
+    background-color: var(--primary-green);
     color: #ffffff;
-    border-bottom: 0.25rem solid #40916c;
+    border-bottom: 0.25rem solid var(--accent-green);
 }
 
-/* Soft Emerald Accent Sub-bar */
+/* Accent Sub-bar */
 .bg-temple-accent {
-    background-color: #e8f5e9;
+    background-color: var(--row-alt-bg);
     border-bottom: 0.1rem solid #c8e6c9;
 }
 
 /* Footer */
 .bg-temple-footer {
-    background-color: #2d6a4f;
+    background-color: var(--primary-green);
     color: #ffffff;
-    border-top: 0.2rem solid #40916c;
+    border-top: 0.2rem solid var(--accent-green);
 }
 
 /* ==========================================
    2. REUSABLE COMPONENTS & BUTTONS
    ========================================== */
 .btn-temple-maintenance {
-    color: #1b4332;
+    color: var(--primary-green-dark);
     border: 0.1rem solid #a3b18a;
     background-color: #ffffff;
     transition: all 0.2s ease-in-out;
@@ -43,19 +57,19 @@ body {
 .btn-temple-maintenance.show,
 .btn-temple-maintenance:active {
     color: #ffffff !important;
-    background-color: #2d6a4f !important;
-    border-color: #1b4332 !important;
+    background-color: var(--primary-green) !important;
+    border-color: var(--primary-green-dark) !important;
     box-shadow: 0 0.2rem 0.4rem rgba(0,0,0,0.12);
 }
 
 .card-sage {
-    border: 0.1rem solid #e0e0e0;
-    border-top: 0.25rem solid #2d6a4f;
+    border: 0.1rem solid var(--border-color);
+    border-top: 0.25rem solid var(--primary-green);
 }
 
 .nav-link.active {
     font-weight: 700 !important;
-    color: #1b4332 !important;
+    color: var(--primary-green-dark) !important;
 }
 
 /* ==========================================
@@ -75,22 +89,38 @@ table.dataTable {
 }
 
 /* ==========================================
-   4. GLOBAL TABLE TYPOGRAPHY & HEADER OVERRIDES
+   4. TABLE TYPOGRAPHY, HEADERS & ZEBRA STRIPING
    ========================================== */
 
-/* Data Rows: Regular Weight (400) with Slightly Larger Font Size */
-table.dataTable tbody td,
-.table tbody td {
-    font-weight: 400 !important;
-    font-size: 0.95rem !important;
-}
-
-/* Header Labels: Slightly Larger, Bold & Distinct */
+/* Header Labels */
 table.dataTable thead th,
 .table thead th {
     font-size: 0.95rem !important;
     font-weight: 700 !important;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: #2d6a4f !important; /* Deep emerald header accent */
+    color: #ffffff !important;
+    background-color: var(--primary-green) !important;
+    padding: 12px 16px !important;
+}
+
+/* Data Rows */
+table.dataTable tbody td,
+.table tbody td {
+    font-weight: 400 !important;
+    font-size: 0.95rem !important;
+    padding: 10px 16px !important;
+}
+
+/* Zebra Striping (Alternating Even Rows) */
+table.dataTable tbody tr:nth-child(even),
+.table tbody tr:nth-child(even),
+.table-striped tbody tr:nth-child(even) {
+    background-color: var(--row-alt-bg) !important;
+}
+
+/* Interactive Hover Feedback */
+table.dataTable tbody tr:hover,
+.table tbody tr:hover {
+    background-color: var(--row-hover-bg) !important;
 }

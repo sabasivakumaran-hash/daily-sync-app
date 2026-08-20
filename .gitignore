@@ -1,9 +1,13 @@
+# Virtual Environment
 venv/
-__pycache__/
-*.pyc
-daily_sync.db
-.DS_Store
-credentials.json
 
+# Local SQLite Database & Caches
 *.db
 daily_sync.db
+__pycache__/
+*.pyc
+# Sensitive Credentials
+credentials.json
+*.json
+# Environment & Secret Configuration
+.env

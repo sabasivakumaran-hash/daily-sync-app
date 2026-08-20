@@ -1,7 +1,13 @@
 import os
 import sqlite3
 from datetime import datetime
+from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import (
+    LoginManager, UserMixin, login_user, logout_user, 
+    login_required, current_user
+)
+from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'temple_sync_secret_key_change_in_production'
@@ -18,6 +24,48 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+# ---------------------------------------------------------
+# FLASK-LOGIN & USER MODEL SETUP (PHASE 2 AUTHENTICATION)
+# ---------------------------------------------------------
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = None  # Silences default Flask-Login message to prevent duplicates
+
+class User(UserMixin):
+    def __init__(self, user_id, username, role):
+        self.id = user_id
+        self.username = username
+        self.role = role
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db()
+    user_row = conn.execute(
+        "SELECT user_id, username, role FROM users WHERE user_id = ? AND is_active = 1", 
+        (user_id,)
+    ).fetchone()
+    conn.close()
+    
+    if user_row:
+        return User(user_row['user_id'], user_row['username'], user_row['role'])
+    return None
+
+# ---------------------------------------------------------
+# RBAC DECORATOR
+# ---------------------------------------------------------
+def role_required(role_name):
+    """Decorator to enforce specific role permissions on routes."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated or current_user.role != role_name:
+                flash('Unauthorized access privileges required.', 'danger')
+                return redirect(url_for('daily_activity_page'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # ---------------------------------------------------------
 # DATE PARSER HELPER
@@ -105,6 +153,42 @@ def badge_status_filter(value):
     return '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>'
 
 # ---------------------------------------------------------
+# AUTHENTICATION ROUTES (LOGIN / LOGOUT)
+# ---------------------------------------------------------
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('daily_activity_page'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        conn = get_db()
+        user_row = conn.execute(
+            "SELECT * FROM users WHERE username = ? AND is_active = 1", 
+            (username,)
+        ).fetchone()
+        conn.close()
+
+        if user_row and check_password_hash(user_row['password_hash'], password):
+            user = User(user_row['user_id'], user_row['username'], user_row['role'])
+            login_user(user)
+            flash(f'Welcome back, {user.username}!', 'success')
+            return redirect(url_for('daily_activity_page'))
+        
+        flash('Invalid username or password.', 'danger')
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out successfully.', 'success')
+    return redirect(url_for('login'))
+
+# ---------------------------------------------------------
 # 1. HOME / INDEX
 # ---------------------------------------------------------
 @app.route('/')
@@ -112,9 +196,10 @@ def index():
     return redirect(url_for('daily_activity_page'))
 
 # ---------------------------------------------------------
-# 2. DAILY ACTIVITY MODULE
+# 2. DAILY ACTIVITY MODULE (ACCESSIBLE BY ALL LOGGED-IN USERS)
 # ---------------------------------------------------------
 @app.route('/daily_activity', methods=['GET'])
+@login_required
 def daily_activity_page():
     conn = get_db()
     
@@ -186,6 +271,7 @@ def daily_activity_page():
     )
 
 @app.route('/daily_activity/save', methods=['POST'])
+@login_required
 def daily_activity_save():
     daily_activity_id = request.form.get('daily_activity_id')
     raw_date = request.form.get('txn_date')
@@ -244,9 +330,11 @@ def daily_activity_save():
     return redirect(url_for('daily_activity_page'))
 
 # ---------------------------------------------------------
-# 3. FINANCIAL DASHBOARD
+# 3. FINANCIAL DASHBOARD (ADMIN ONLY)
 # ---------------------------------------------------------
 @app.route('/dashboard')
+@login_required
+@role_required('admin')
 def dashboard_page():
     conn = get_db()
     current_year_str = datetime.now().strftime('%Y')
@@ -336,9 +424,11 @@ def dashboard_page():
     )
 
 # ---------------------------------------------------------
-# 4. REPORTS PAGE
+# 4. REPORTS PAGE (ADMIN ONLY)
 # ---------------------------------------------------------
 @app.route('/reports')
+@login_required
+@role_required('admin')
 def reports_page():
     conn = get_db()
     current_year_str = datetime.now().strftime('%Y')
@@ -504,9 +594,11 @@ def reports_page():
     )
 
 # ---------------------------------------------------------
-# 5. MAINTENANCE MODULE
+# 5. MAINTENANCE MODULE (ADMIN ONLY)
 # ---------------------------------------------------------
 @app.route('/maintenance/category')
+@login_required
+@role_required('admin')
 def category_lookup_page():
     conn = get_db()
     edit_id = request.args.get('edit_id')
@@ -519,6 +611,8 @@ def category_lookup_page():
     return render_template('category_lookup.html', categories=categories, editing_cat=editing_cat)
 
 @app.route('/maintenance/category/save', methods=['POST'])
+@login_required
+@role_required('admin')
 def category_lookup_save():
     cat_id = request.form.get('category_lookup_id')
     cat_name = request.form.get('category_name', '').strip()
@@ -539,6 +633,8 @@ def category_lookup_save():
     return redirect(url_for('category_lookup_page'))
 
 @app.route('/maintenance/activity')
+@login_required
+@role_required('admin')
 def activity_lookup_page():
     conn = get_db()
     edit_id = request.args.get('edit_id')
@@ -563,6 +659,8 @@ def activity_lookup_page():
     return render_template('activity_lookup.html', activities=activities, categories=categories, editing_act=editing_act)
 
 @app.route('/maintenance/activity/save', methods=['POST'])
+@login_required
+@role_required('admin')
 def activity_lookup_save():
     act_id = request.form.get('activity_lookup_id')
     cat_id = request.form.get('category_lookup_id')
@@ -579,7 +677,7 @@ def activity_lookup_save():
             UPDATE activity_lookup 
             SET category_lookup_id = ?, activity_name = ?, default_amount = ?, is_income = ?, is_active = ? 
             WHERE activity_lookup_id = ?
-        """, (cat_id, act_name, default_amount, is_income, is_active, act_id))
+        """, (cat_id, act_name, default_amount, is_income, act_id))
         flash(f'Activity "{act_name}" updated successfully!', 'success')
     else:
         cursor.execute("""
@@ -593,6 +691,8 @@ def activity_lookup_save():
     return redirect(url_for('activity_lookup_page'))
 
 @app.route('/maintenance/data')
+@login_required
+@role_required('admin')
 def maintenance_data_page():
     active_tab = request.args.get('table', 'daily')
     conn = get_db()

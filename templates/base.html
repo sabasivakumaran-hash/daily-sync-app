@@ -42,12 +42,17 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
+                {% if current_user.is_authenticated %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1 fw-semibold">
+                    <!-- Visible to ALL Logged-In Users -->
                     <li class="nav-item">
                         <a class="nav-link text-dark px-3 {% if request.endpoint == 'daily_activity_page' %}active{% endif %}" href="{{ url_for('daily_activity_page') }}">
                             <i class="fa-solid fa-calendar-day me-1 text-success"></i> Daily Activity List
                         </a>
                     </li>
+
+                    <!-- Visible ONLY to Admin -->
+                    {% if current_user.role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link text-dark px-3 {% if request.endpoint == 'dashboard_page' %}active{% endif %}" href="{{ url_for('dashboard_page') }}">
                             <i class="fa-solid fa-chart-line me-1 text-success"></i> Dashboard
@@ -58,9 +63,12 @@
                             <i class="fa-solid fa-file-invoice-dollar me-1 text-success"></i> Reports
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
 
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center gap-2">
+                    <!-- Maintenance Dropdown: Visible ONLY to Admin -->
+                    {% if current_user.role == 'admin' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle btn btn-temple-maintenance btn-sm px-3 fw-semibold" href="#" id="maintenanceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fa-solid fa-gears me-1 text-success"></i> Maintenance
@@ -85,7 +93,29 @@
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
+
+                    <!-- User Status Badge & Logout Button -->
+                    <li class="nav-item ms-lg-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                            <i class="fa-solid fa-user me-1"></i>{{ current_user.username }} ({{ current_user.role }})
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-outline-danger btn-sm fw-semibold ms-1" href="{{ url_for('logout') }}">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i>Logout
+                        </a>
+                    </li>
                 </ul>
+                {% else %}
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="btn btn-success btn-sm fw-semibold" href="{{ url_for('login') }}">
+                            <i class="fa-solid fa-right-to-bracket me-1"></i>Login
+                        </a>
+                    </li>
+                </ul>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -127,6 +157,33 @@
     <!-- 3. DataTables Core & Bootstrap 5 Integration -->
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- AUTOMATIC 20-MINUTE INACTIVITY LOGOFF TIMER -->
+    {% if current_user.is_authenticated %}
+    <script>
+    (function() {
+        // Inactivity timeout setting: 20 minutes (in milliseconds)
+        const INACTIVITY_TIMEOUT = 20 * 60 * 1000; 
+        let inactivityTimer;
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(function() {
+                window.location.href = "{{ url_for('logout') }}";
+            }, INACTIVITY_TIMEOUT);
+        }
+
+        // User activity listeners
+        const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        activityEvents.forEach(function(event) {
+            window.addEventListener(event, resetInactivityTimer, false);
+        });
+
+        // Initialize timer on page load
+        resetInactivityTimer();
+    })();
+    </script>
+    {% endif %}
 
     <!-- 4. Dynamic Script Block for Child Templates -->
     {% block scripts %}{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Temple Sync{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center align-items-center my-md-3">
+        <!-- Expanded column width for a wider card -->
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                
+                <!-- Card Header with Temple Logo and Title Header / Sub-header -->
+                <div class="card-header bg-temple-header text-white text-center py-4 border-0">
+                    <div class="mb-3">
+                        <img src="{{ url_for('static', filename='image/logo.png') }}" 
+                             alt="Temple Logo" 
+                             class="img-fluid rounded-circle border shadow-sm"
+                             style="height: 5.5rem; width: 5.5rem; object-fit: cover; border-color: #ffffff !important; border-width: 0.2rem !important;">
+                    </div>
+                    <h4 class="fw-bold text-white mb-1 fs-4">Sri Ganesh Temple Society of BC</h4>
+                    <h6 class="text-light mb-0 fw-semibold opacity-90" style="font-size: 1rem;">Income and Expense Application</h6>
+                </div>
+                
+                <div class="card-body p-4 p-md-5 bg-white">
+                    <form action="{{ url_for('login') }}" method="POST">
+                        <div class="mb-4">
+                            <label for="username" class="form-label fw-semibold text-secondary small">Username</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-solid fa-user text-success"></i></span>
+                                <input type="text" class="form-control bg-light border-start-0 ps-0" id="username" name="username" placeholder="Enter username" required autofocus>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label fw-semibold text-secondary small">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-solid fa-lock text-success"></i></span>
+                                <input type="password" class="form-control bg-light border-start-0 ps-0" id="password" name="password" placeholder="Enter password" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-success btn-lg fw-bold shadow-sm py-2">
+                                <i class="fa-solid fa-right-to-bracket me-2"></i>Log In
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="card-footer bg-light text-center py-3 border-0">
+                    <small class="text-muted"><i class="fa-solid fa-shield-halved me-1 text-success"></i> Secure Access Terminal</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

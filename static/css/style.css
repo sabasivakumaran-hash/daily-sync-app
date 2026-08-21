@@ -1,126 +1,192 @@
-/* ==========================================
-   1. GLOBAL VARIABLES & BASE LAYOUT
-   ========================================== */
+/* ==========================================================================
+   TEMPLE SYNC GLOBAL COLOR SYSTEM & DESIGN TOKENS
+   ========================================================================== */
 :root {
-  /* Brand Emerald/Green Palette */
-  --primary-green: #2d6a4f;       /* Header / Main Buttons */
-  --primary-green-dark: #1b4332;  /* Deep Emerald Accent */
-  --accent-green: #40916c;        /* Borders / Highlights */
-  
-  /* Row & Background Tints */
-  --row-alt-bg: #e8f5e9;          /* Alternating Row Tint */
-  --row-hover-bg: #c8e6c9;        /* Hover Row Highlight */
-  --bg-main: #f8faf8;             /* Body Background */
-  --surface-card: #ffffff;        /* Cards / Modals */
-  --border-color: #e0e0e0;
+    --temple-header-bg: #0d5232;       /* Deep Emerald Header */
+    --temple-accent-bg: #e8f5e9;       /* Soft Sage Accent */
+    --temple-footer-bg: #0d5232;       /* Deep Emerald Footer */
+    --temple-green-primary: #198754;   /* Bootstrap Success Base */
+    --temple-green-hover: #146c43;     /* Darker Green Hover */
+    --temple-green-light: #e8f5e9;     /* Light Green Highlight */
+    --temple-border-color: #c8e6c9;    /* Muted Green Border */
 }
 
+/* ==========================================================================
+   1. GLOBAL BODY & CONTAINER STYLES
+   ========================================================================== */
 body {
-    background-color: var(--bg-main);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    background-color: #f8f9fa;
+    color: #212529;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Header Banner */
+/* Flex grow wrapper for sticky footer */
+main {
+    flex: 1 0 auto;
+}
+
+/* ==========================================================================
+   2. HEADER, LOGO & SUBTITLE STYLES (EXTRACTED FROM INLINE)
+   ========================================================================== */
 .bg-temple-header {
-    background-color: var(--primary-green);
-    color: #ffffff;
-    border-bottom: 0.25rem solid var(--accent-green);
+    background-color: var(--temple-header-bg) !important;
 }
 
-/* Accent Sub-bar */
+.header-padding {
+    padding: 1.25rem 2%;
+}
+
+.header-logo {
+    height: 4.8rem;
+    width: 4.8rem;
+    object-fit: cover;
+    border-color: #ffffff !important;
+    border-width: 0.2rem !important;
+}
+
+.header-subtitle {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
 .bg-temple-accent {
-    background-color: var(--row-alt-bg);
-    border-bottom: 0.1rem solid #c8e6c9;
+    background-color: var(--temple-accent-bg) !important;
+    border-bottom: 1px solid var(--temple-border-color);
 }
 
-/* Footer */
 .bg-temple-footer {
-    background-color: var(--primary-green);
-    color: #ffffff;
-    border-top: 0.2rem solid var(--accent-green);
+    background-color: var(--temple-footer-bg) !important;
 }
 
-/* ==========================================
-   2. REUSABLE COMPONENTS & BUTTONS
-   ========================================== */
+/* ==========================================================================
+   3. NAVIGATION & MAINTENANCE DROPDOWN BUTTONS
+   ========================================================================== */
 .btn-temple-maintenance {
-    color: var(--primary-green-dark);
-    border: 0.1rem solid #a3b18a;
     background-color: #ffffff;
-    transition: all 0.2s ease-in-out;
+    color: var(--temple-header-bg) !important;
+    border: 1px solid var(--temple-border-color) !important;
 }
 
 .btn-temple-maintenance:hover,
-.btn-temple-maintenance:focus,
-.btn-temple-maintenance.show,
-.btn-temple-maintenance:active {
-    color: #ffffff !important;
-    background-color: var(--primary-green) !important;
-    border-color: var(--primary-green-dark) !important;
-    box-shadow: 0 0.2rem 0.4rem rgba(0,0,0,0.12);
+.btn-temple-maintenance:focus {
+    background-color: var(--temple-accent-bg) !important;
+    color: var(--temple-green-hover) !important;
+}
+
+/* ==========================================================================
+   4. CARD PANELS (EMERALD & SAGE TEMPLE THEME)
+   ========================================================================== */
+.card-emerald {
+    border: 1px solid var(--temple-border-color);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.card-header-dark-emerald {
+    background-color: var(--temple-header-bg) !important;
 }
 
 .card-sage {
-    border: 0.1rem solid var(--border-color);
-    border-top: 0.25rem solid var(--primary-green);
+    border: 1px solid var(--temple-border-color);
+    border-radius: 0.5rem;
+    background-color: #ffffff;
 }
 
-.nav-link.active {
-    font-weight: 700 !important;
-    color: var(--primary-green-dark) !important;
+/* ==========================================================================
+   5. DATATABLES & TABLE STYLING (ZEBRA STRIPING & GREEN PAGINATION)
+   ========================================================================== */
+.table-hover tbody tr:hover {
+    background-color: rgba(25, 135, 84, 0.05) !important;
 }
 
-/* ==========================================
-   3. DATATABLES GRID DEFENSE FIX
-   ========================================== */
-.table-responsive {
-    width: 100% !important;
-    overflow-x: auto;
-}
-
-div.dataTables_wrapper {
-    width: 100% !important;
-}
-
-table.dataTable {
-    width: 100% !important;
-}
-
-/* ==========================================
-   4. TABLE TYPOGRAPHY, HEADERS & ZEBRA STRIPING
-   ========================================== */
-
-/* Header Labels */
-table.dataTable thead th,
-.table thead th {
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
+/* DataTables Pagination Green Theme (Extracted from Templates) */
+.dataTables_wrapper .pagination .page-item.active .page-link {
+    background-color: var(--temple-green-primary) !important;
+    border-color: var(--temple-green-primary) !important;
     color: #ffffff !important;
-    background-color: var(--primary-green) !important;
-    padding: 12px 16px !important;
 }
 
-/* Data Rows */
-table.dataTable tbody td,
-.table tbody td {
-    font-weight: 400 !important;
-    font-size: 0.95rem !important;
-    padding: 10px 16px !important;
+.dataTables_wrapper .pagination .page-link {
+    color: var(--temple-green-primary) !important;
 }
 
-/* Zebra Striping (Alternating Even Rows) */
-table.dataTable tbody tr:nth-child(even),
-.table tbody tr:nth-child(even),
-.table-striped tbody tr:nth-child(even) {
-    background-color: var(--row-alt-bg) !important;
+.dataTables_wrapper .pagination .page-link:hover {
+    color: var(--temple-green-hover) !important;
+    background-color: var(--temple-green-light) !important;
 }
 
-/* Interactive Hover Feedback */
-table.dataTable tbody tr:hover,
-.table tbody tr:hover {
-    background-color: var(--row-hover-bg) !important;
+/* Search input rounding */
+.dataTables_filter input {
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+    padding: 0.25rem 0.5rem;
+}
+
+.dataTables_filter input:focus {
+    border-color: var(--temple-green-primary);
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+}
+
+/* ==========================================================================
+   6. CUSTOM BADGES & STATUS INDICATORS
+   ========================================================================== */
+.badge-income {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+    font-weight: 600;
+}
+
+.badge-expense {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+    font-weight: 600;
+}
+/* ==========================================================================
+   7. HARMONIZED EXPENSE PALETTE (TERRACOTTA / MUTED ROSE)
+   ========================================================================== */
+/* Replaces stark primary red with earthy terracotta/rose that blends with green */
+.badge-expense,
+.bg-danger-subtle {
+    background-color: #fdf2f2 !important; /* Soft blush tint */
+    color: #9b2c2c !important;            /* Muted crimson text */
+    border: 1px solid #f87171 !important;  /* Soft coral border */
+}
+
+/* Text overrides for expense values and table headers */
+.text-danger {
+    color: #c05621 !important;            /* Warm Terracotta */
+}
+
+/* Border overrides for alert/badge elements */
+.border-danger-subtle {
+    border-color: #f87171 !important;
+}
+/* ==========================================================================
+   8. REPORTS EXPENSE HIGHLIGHT (DARK CRIMSON)
+   ========================================================================== */
+/* Darker red styling for Expense / Total Expense summary rows */
+.report-expense-row,
+tr.report-expense-row td,
+.expense-total-text {
+    color: #8b0000 !important;       /* Dark Red / Crimson */
+    font-weight: 700 !important;
+}
+
+/* Optional darker subtle background tint for the expense summary row */
+tr.report-expense-row {
+    background-color: #fdf2f2 !important;
+}
+/* Custom Expense Row Dark Red Accent */
+.report-expense-row,
+.report-expense-row td,
+.expense-total-text {
+    color: #8b0000 !important;       /* Dark Crimson Red */
+    font-weight: 700 !important;
+}
+
+tr.report-expense-row {
+    background-color: #fdf2f2 !important; /* Soft blush tint background */
 }

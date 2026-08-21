@@ -3,22 +3,6 @@
 {% block title %}Daily Activity Entry - Temple Sync{% endblock %}
 
 {% block content %}
-<style>
-  /* Custom styled pagination matching page theme */
-  .dataTables_wrapper .pagination .page-item.active .page-link {
-    background-color: #198754 !important;
-    border-color: #198754 !important;
-    color: #ffffff !important;
-  }
-  .dataTables_wrapper .pagination .page-link {
-    color: #198754;
-  }
-  .dataTables_wrapper .pagination .page-link:hover {
-    color: #146c43;
-    background-color: #e8f5e9;
-  }
-</style>
-
 <div class="container-fluid py-3 px-md-4">
 
   <!-- TOP PAGE TITLE -->
@@ -238,8 +222,9 @@
   </div>
 
 </div>
+{% endblock %}
 
-<!-- JAVASCRIPT LOGIC -->
+{% block scripts %}
 <script>
   function calculateTotal() {
     const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0.0;
@@ -275,7 +260,6 @@
   }
 
   document.addEventListener("DOMContentLoaded", function() {
-    // Initialize DataTables
     if (window.jQuery && $.fn.DataTable) {
       $('#dailyActivityTable').DataTable({
         order: [], 
@@ -289,7 +273,6 @@
       });
     }
 
-    // Default Date to Today MM/DD/YYYY if empty
     const dateInput = document.getElementById('txn_date');
     if (dateInput && !dateInput.value) {
       const today = new Date();

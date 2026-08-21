@@ -26,12 +26,12 @@ def get_db():
     return conn
 
 # ---------------------------------------------------------
-# FLASK-LOGIN & USER MODEL SETUP (PHASE 2 AUTHENTICATION)
+# FLASK-LOGIN & USER MODEL SETUP
 # ---------------------------------------------------------
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-login_manager.login_message = None  # Silences default Flask-Login message to prevent duplicates
+login_manager.login_message = None  # Silences default Flask-Login message
 
 class User(UserMixin):
     def __init__(self, user_id, username, role):
@@ -196,7 +196,7 @@ def index():
     return redirect(url_for('daily_activity_page'))
 
 # ---------------------------------------------------------
-# 2. DAILY ACTIVITY MODULE (ACCESSIBLE BY ALL LOGGED-IN USERS)
+# 2. DAILY ACTIVITY MODULE
 # ---------------------------------------------------------
 @app.route('/daily_activity', methods=['GET'])
 @login_required
@@ -212,7 +212,7 @@ def daily_activity_page():
     """).fetchall()
     existing_names = [r['person_name'] for r in name_rows]
 
-    # Active activities dropdown list (Sorted strictly by activity_name ASC)
+    # Active activities dropdown
     activities = conn.execute("""
         SELECT a.activity_lookup_id, a.activity_name, a.default_amount, 
                CAST(COALESCE(a.is_income, 1) AS INTEGER) as is_income, 
@@ -239,7 +239,7 @@ def daily_activity_page():
             WHERE t.daily_activity_id = ?
         """, (edit_id,)).fetchone()
 
-    # All transactions list
+    # All transactions list for table
     transactions = conn.execute("""
         SELECT 
             t.daily_activity_id,
@@ -275,14 +275,14 @@ def daily_activity_page():
 def daily_activity_save():
     daily_activity_id = request.form.get('daily_activity_id')
     raw_date = request.form.get('txn_date')
-    session_type = int(request.form.get('session_type', 1))  # Default: 1 = AM
+    session_type = int(request.form.get('session_type', 1))
     activity_lookup_id = request.form.get('activity_lookup_id')
     person_name = request.form.get('person_name', '').strip()
     unit_price = float(request.form.get('unit_price', 0.0))
     quantity = int(request.form.get('quantity', 1))
     total_amount = float(request.form.get('total_amount', 0.0))
     remarks = request.form.get('remarks', '').strip()
-    is_active = int(request.form.get('is_active', 1))  # Default: 1 = Active
+    is_active = int(request.form.get('is_active', 1))
 
     conn = get_db()
     cursor = conn.cursor()
@@ -596,21 +596,19 @@ def reports_page():
 # ---------------------------------------------------------
 # 5. MAINTENANCE MODULE (ADMIN ONLY)
 # ---------------------------------------------------------
-@app.route('/maintenance/category')
+@app.route('/maintenance/category_lookup')
 @login_required
 @role_required('admin')
 def category_lookup_page():
     conn = get_db()
-    edit_id = request.args.get('edit_id')
-    editing_cat = None
-    if edit_id:
-        editing_cat = conn.execute("SELECT *, CAST(COALESCE(is_active, 1) AS INTEGER) as is_active FROM category_lookup WHERE category_lookup_id = ?", (edit_id,)).fetchone()
-        
-    categories = conn.execute("SELECT *, CAST(COALESCE(is_active, 1) AS INTEGER) as is_active FROM category_lookup ORDER BY category_name ASC").fetchall()
+    categories = conn.execute(
+        "SELECT *, CAST(COALESCE(is_active, 1) AS INTEGER) as is_active FROM category_lookup ORDER BY category_name ASC"
+    ).fetchall()
     conn.close()
-    return render_template('category_lookup.html', categories=categories, editing_cat=editing_cat)
+    # Pass 'category_lookups' to match category_lookup.html
+    return render_template('category_lookup.html', category_lookups=categories)
 
-@app.route('/maintenance/category/save', methods=['POST'])
+@app.route('/maintenance/category_lookup/save', methods=['POST'])
 @login_required
 @role_required('admin')
 def category_lookup_save():
@@ -621,32 +619,27 @@ def category_lookup_save():
     conn = get_db()
     cursor = conn.cursor()
     if cat_id:
-        cursor.execute("UPDATE category_lookup SET category_name = ?, is_active = ? WHERE category_lookup_id = ?",
-                       (cat_name, is_active, cat_id))
+        cursor.execute(
+            "UPDATE category_lookup SET category_name = ?, is_active = ? WHERE category_lookup_id = ?",
+            (cat_name, is_active, cat_id)
+        )
         flash(f'Category "{cat_name}" updated successfully!', 'success')
     else:
-        cursor.execute("INSERT INTO category_lookup (category_name, is_active) VALUES (?, ?)", (cat_name, is_active))
+        cursor.execute(
+            "INSERT INTO category_lookup (category_name, is_active) VALUES (?, ?)", 
+            (cat_name, is_active)
+        )
         flash(f'New category "{cat_name}" created successfully!', 'success')
         
     conn.commit()
     conn.close()
     return redirect(url_for('category_lookup_page'))
 
-@app.route('/maintenance/activity')
+@app.route('/maintenance/activity_lookup')
 @login_required
 @role_required('admin')
 def activity_lookup_page():
     conn = get_db()
-    edit_id = request.args.get('edit_id')
-    editing_act = None
-    if edit_id:
-        editing_act = conn.execute("""
-            SELECT *, CAST(COALESCE(is_income, 1) AS INTEGER) as is_income, 
-                      CAST(COALESCE(is_active, 1) AS INTEGER) as is_active 
-            FROM activity_lookup 
-            WHERE activity_lookup_id = ?
-        """, (edit_id,)).fetchone()
-
     activities = conn.execute("""
         SELECT a.*, CAST(COALESCE(a.is_income, 1) AS INTEGER) as is_income, 
                CAST(COALESCE(a.is_active, 1) AS INTEGER) as is_active, c.category_name 
@@ -654,11 +647,14 @@ def activity_lookup_page():
         LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id 
         ORDER BY a.activity_name ASC
     """).fetchall()
-    categories = conn.execute("SELECT * FROM category_lookup WHERE is_active = 1 ORDER BY category_name ASC").fetchall()
+    categories = conn.execute(
+        "SELECT * FROM category_lookup WHERE is_active = 1 ORDER BY category_name ASC"
+    ).fetchall()
     conn.close()
-    return render_template('activity_lookup.html', activities=activities, categories=categories, editing_act=editing_act)
+    # Pass 'activity_lookups' and 'category_lookups' to match activity_lookup.html
+    return render_template('activity_lookup.html', activity_lookups=activities, category_lookups=categories)
 
-@app.route('/maintenance/activity/save', methods=['POST'])
+@app.route('/maintenance/activity_lookup/save', methods=['POST'])
 @login_required
 @role_required('admin')
 def activity_lookup_save():
@@ -677,7 +673,7 @@ def activity_lookup_save():
             UPDATE activity_lookup 
             SET category_lookup_id = ?, activity_name = ?, default_amount = ?, is_income = ?, is_active = ? 
             WHERE activity_lookup_id = ?
-        """, (cat_id, act_name, default_amount, is_income, act_id))
+        """, (cat_id, act_name, default_amount, is_income, is_active, act_id))
         flash(f'Activity "{act_name}" updated successfully!', 'success')
     else:
         cursor.execute("""
@@ -700,7 +696,9 @@ def maintenance_data_page():
     categories, activities, daily_activities = [], [], []
     
     if active_tab == 'category':
-        categories = conn.execute('SELECT *, CAST(COALESCE(is_active, 1) AS INTEGER) as is_active FROM category_lookup ORDER BY category_lookup_id ASC').fetchall()
+        categories = conn.execute(
+            'SELECT *, CAST(COALESCE(is_active, 1) AS INTEGER) as is_active FROM category_lookup ORDER BY category_lookup_id ASC'
+        ).fetchall()
     elif active_tab == 'activity':
         activities = conn.execute('''
             SELECT al.*, CAST(COALESCE(al.is_income, 1) AS INTEGER) as is_income, 

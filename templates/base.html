@@ -17,19 +17,18 @@
 </head>
 <body class="d-flex flex-column min-vh-100">
 
-    <!-- COMPACT DEEP EMERALD HEADER BAR -->
-    <header class="bg-temple-header shadow-sm" style="padding: 1.25rem 2%;">
+    <!-- HEADER BAR -->
+    <header class="bg-temple-header shadow-sm header-padding">
         <div class="container-fluid">
             <div class="row align-items-center justify-content-center text-center">
                 <div class="col-auto mb-2 mb-md-0">
                     <img src="{{ url_for('static', filename='image/logo.png') }}" 
                          alt="Temple Logo" 
-                         class="img-fluid rounded-circle border shadow-sm"
-                         style="height: 4.8rem; width: 4.8rem; object-fit: cover; border-color: #ffffff !important; border-width: 0.2rem !important;">
+                         class="img-fluid rounded-circle border shadow-sm header-logo">
                 </div>
                 <div class="col-12 col-md-auto text-center">
                     <h2 class="fw-bold text-white mb-0 fs-3 text-center">Sri Ganesh Temple Society of British Columbia</h2>
-                    <h6 class="text-light mb-0 fw-semibold text-center" style="font-size: 1.1rem; opacity: 0.9;">Income and Expense Application</h6>
+                    <h6 class="text-light mb-0 fw-semibold text-center header-subtitle">Income and Expense Application</h6>
                 </div>
             </div>
         </div>
@@ -44,14 +43,12 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 {% if current_user.is_authenticated %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1 fw-semibold">
-                    <!-- Visible to ALL Logged-In Users -->
                     <li class="nav-item">
                         <a class="nav-link text-dark px-3 {% if request.endpoint == 'daily_activity_page' %}active{% endif %}" href="{{ url_for('daily_activity_page') }}">
                             <i class="fa-solid fa-calendar-day me-1 text-success"></i> Daily Activity List
                         </a>
                     </li>
 
-                    <!-- Visible ONLY to Admin -->
                     {% if current_user.role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link text-dark px-3 {% if request.endpoint == 'dashboard_page' %}active{% endif %}" href="{{ url_for('dashboard_page') }}">
@@ -67,7 +64,6 @@
                 </ul>
 
                 <ul class="navbar-nav ms-auto align-items-center gap-2">
-                    <!-- Maintenance Dropdown: Visible ONLY to Admin -->
                     {% if current_user.role == 'admin' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle btn btn-temple-maintenance btn-sm px-3 fw-semibold" href="#" id="maintenanceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -95,7 +91,6 @@
                     </li>
                     {% endif %}
 
-                    <!-- User Status Badge & Logout Button -->
                     <li class="nav-item ms-lg-2">
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
                             <i class="fa-solid fa-user me-1"></i>{{ current_user.username }} ({{ current_user.role }})
@@ -122,70 +117,41 @@
 
     <!-- MAIN BODY CONTENT -->
     <main class="flex-grow-1">
-    <!-- FLASH MESSAGES CONTAINER -->
-    <div class="container-fluid px-md-4 pt-3">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
-                {% if category == 'success' %}
-                <i class="fa-solid fa-circle-check me-2"></i>
-                {% elif category == 'danger' or category == 'error' %}
-                <i class="fa-solid fa-triangle-exclamation me-2"></i>
-                {% else %}
-                <i class="fa-solid fa-circle-info me-2"></i>
-                {% endif %}
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            {% endfor %}
-        {% endif %}
-        {% endwith %}
-    </div>
+        <!-- FLASH MESSAGES CONTAINER -->
+        <div class="container-fluid px-md-4 pt-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
+                    {% if category == 'success' %}
+                    <i class="fa-solid fa-circle-check me-2"></i>
+                    {% elif category == 'danger' or category == 'error' %}
+                    <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                    {% else %}
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+        </div>
 
-    <!-- MAIN PAGE CONTENT -->
-    {% block content %}{% endblock %}
+        {% block content %}{% endblock %}
     </main>
 
     <!-- JS DEPENDENCIES -->
-    <!-- 1. jQuery (Required for DataTables) -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-
-    <!-- 2. Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- 3. DataTables Core & Bootstrap 5 Integration -->
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
-    <!-- AUTOMATIC 20-MINUTE INACTIVITY LOGOFF TIMER -->
     {% if current_user.is_authenticated %}
-    <script>
-    (function() {
-        // Inactivity timeout setting: 20 minutes (in milliseconds)
-        const INACTIVITY_TIMEOUT = 20 * 60 * 1000; 
-        let inactivityTimer;
-
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = setTimeout(function() {
-                window.location.href = "{{ url_for('logout') }}";
-            }, INACTIVITY_TIMEOUT);
-        }
-
-        // User activity listeners
-        const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-        activityEvents.forEach(function(event) {
-            window.addEventListener(event, resetInactivityTimer, false);
-        });
-
-        // Initialize timer on page load
-        resetInactivityTimer();
-    })();
-    </script>
+        <script>const LOGOUT_URL = "{{ url_for('logout') }}";</script>
+        <script src="{{ url_for('static', filename='js/inactivity-timer.js') }}"></script>
     {% endif %}
 
-    <!-- 4. Dynamic Script Block for Child Templates -->
     {% block scripts %}{% endblock %}
 </body>
 </html>

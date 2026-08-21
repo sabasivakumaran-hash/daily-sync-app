@@ -3,21 +3,6 @@
 {% block title %}Activity List - Temple Sync{% endblock %}
 
 {% block content %}
-    <style>
-    /* Custom styled pagination matching page green theme */
-    .dataTables_wrapper .pagination .page-item.active .page-link {
-        background-color: #198754 !important;
-        border-color: #198754 !important;
-        color: #ffffff !important;
-    }
-    .dataTables_wrapper .pagination .page-link {
-        color: #198754 !important;
-    }
-    .dataTables_wrapper .pagination .page-link:hover {
-        color: #146c43 !important;
-        background-color: #e8f5e9 !important;
-    }
-    </style>
 <div class="row g-4">
     <!-- PANEL 1: RECORD ACTIVITY FORM (HIDDEN BY DEFAULT) -->
     <div class="col-12" id="panelFormContainer" style="display: none;">
@@ -44,7 +29,7 @@
                             <label for="category_lookup_id" class="form-label fw-semibold text-secondary">Category <span class="text-danger">*</span></label>
                             <select class="form-select" id="category_lookup_id" name="category_lookup_id" required>
                                 <option value="" disabled selected>-- Select Category --</option>
-                                {% for cat in categories %}
+                                {% for cat in category_lookups %}
                                     <option value="{{ cat.category_lookup_id }}">{{ cat.category_name }}</option>
                                 {% endfor %}
                             </select>
@@ -95,7 +80,7 @@
                         <i class="fa-solid fa-list-check me-2 text-success"></i>Activity List
                     </h5>
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
-                        {{ activities|length }} Total Activities
+                        {{ activity_lookups|length }} Total Activities
                     </span>
                 </div>
                 <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="openAddForm()">
@@ -116,7 +101,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for act in activities %}
+                            {% for act in activity_lookups %}
                             <tr>
                                 <td class="text-dark fw-medium">{{ act.activity_name }}</td>
                                 <td class="text-dark">{{ act.category_name or '-' }}</td>

@@ -3,22 +3,6 @@
 {% block title %}Category List - Temple Sync{% endblock %}
 
 {% block content %}
-<style>
-  /* Custom styled pagination matching page green theme */
-  .dataTables_wrapper .pagination .page-item.active .page-link {
-    background-color: #198754 !important;
-    border-color: #198754 !important;
-    color: #ffffff !important;
-  }
-  .dataTables_wrapper .pagination .page-link {
-    color: #198754 !important;
-  }
-  .dataTables_wrapper .pagination .page-link:hover {
-    color: #146c43 !important;
-    background-color: #e8f5e9 !important;
-  }
-</style>
-
 <div class="row g-4">
     <!-- PANEL 1: RECORD CATEGORY FORM (HIDDEN BY DEFAULT) -->
     <div class="col-12" id="panelFormContainer" style="display: none;">
@@ -69,7 +53,7 @@
                         <i class="fa-solid fa-layer-group me-2 text-success"></i>Category List
                     </h5>
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
-                        {{ categories|length }} Total Categories
+                        {{ category_lookups|length }} Total Categories
                     </span>
                 </div>
                 <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="openAddForm()">
@@ -87,7 +71,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for cat in categories %}
+                            {% for cat in category_lookups %}
                             <tr>
                                 <td class="text-dark fw-medium">{{ cat.category_name }}</td>
                                 <td class="text-center">

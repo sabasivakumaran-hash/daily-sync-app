@@ -13,7 +13,7 @@
     </div>
   </div>
 
-  <!-- PANEL 1: ENTRY FORM CARD (HIDDEN BY DEFAULT UNLESS EDITING OR ADD CLICKED) -->
+  <!-- PANEL 1: ENTRY FORM CARD (VISIBLE WHEN EDITING OR ADD CLICKED) -->
   <div class="card card-emerald shadow-sm mb-4 {% if not editing_txn and request.args.get('add') != 'true' %}d-none{% endif %}" id="formPanel">
     <div class="card-header card-header-dark-emerald bg-success text-white py-2 d-flex justify-content-between align-items-center">
       <h6 class="card-title mb-0 fw-bold">
@@ -58,11 +58,12 @@
             <select class="form-select form-select-sm border-success-subtle" id="activity_lookup_id" name="activity_lookup_id" onchange="updatePriceFromActivity()" required>
               <option value="" disabled {% if not editing_txn %}selected{% endif %}>-- Select Activity --</option>
               {% for act in activities %}
+                {% set txn_type = 'INCOME' if act.is_income == 1 else 'EXPENSE' %}
                 <option value="{{ act.activity_lookup_id }}" 
                         data-price="{{ act.default_amount }}"
                         data-isincome="{{ act.is_income }}"
                         {% if editing_txn and editing_txn.activity_lookup_id == act.activity_lookup_id %}selected{% endif %}>
-                  {{ act.activity_name }} ({{ act.default_amount | currency }}) [{{ act.category_name or 'General' }}]
+                  [{{ txn_type }}] - {{ act.activity_name }} ({{ act.default_amount | currency }}) [{{ act.category_name or 'General' }}]
                 </option>
               {% endfor %}
             </select>
@@ -163,7 +164,11 @@
         <i class="fa-solid fa-list me-2"></i>Daily Activity List
       </h6>
       <div class="d-flex align-items-center gap-2">
-        <button type="button" class="btn btn-light btn-sm fw-bold text-success shadow-sm" onclick="showFormPanel()">
+        <button type="button" 
+                id="addActivityBtn"
+                class="btn btn-light btn-sm fw-bold text-success shadow-sm" 
+                onclick="showFormPanel()" 
+                {% if editing_txn or request.args.get('add') == 'true' %}disabled title="Close or save current entry form first"{% endif %}>
           <i class="fa-solid fa-plus me-1"></i> Add Daily Activity
         </button>
         <span class="badge bg-light text-dark fw-bold">{{ transactions | length }} Entries</span>
@@ -243,16 +248,26 @@
 
   function showFormPanel() {
     const panel = document.getElementById('formPanel');
+    const addBtn = document.getElementById('addActivityBtn');
     if (panel) {
       panel.classList.remove('d-none');
       panel.scrollIntoView({ behavior: 'smooth' });
+    }
+    if (addBtn) {
+      addBtn.disabled = true;
+      addBtn.title = "Close or save current entry form first";
     }
   }
 
   function hideFormPanel() {
     const panel = document.getElementById('formPanel');
+    const addBtn = document.getElementById('addActivityBtn');
     if (panel) {
       panel.classList.add('d-none');
+    }
+    if (addBtn) {
+      addBtn.disabled = false;
+      addBtn.removeAttribute('title');
     }
     if (window.location.search.includes('edit_id') || window.location.search.includes('add')) {
       window.location.href = "{{ url_for('daily_activity_page') }}";

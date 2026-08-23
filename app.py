@@ -21,9 +21,12 @@ app = Flask(__name__)
 env = os.environ.get('FLASK_ENV', 'default')
 app.config.from_object(config[env])
 
-# Register Modular Reporting Blueprint
+# Register Modular Blueprints
 from dynamic import dynamic_bp
+from admin import admin_bp
+
 app.register_blueprint(dynamic_bp)
+app.register_blueprint(admin_bp)
 
 # ---------------------------------------------------------
 # REGISTER JINJA TEMPLATE FILTERS
@@ -477,40 +480,23 @@ def activity_lookup_save():
 @login_required
 @role_required('admin')
 def maintenance_data_page():
-    active_tab = request.args.get('table', 'daily')
     conn = get_db()
+    cursor = conn.cursor()
     
-    categories, activities, daily_activities = [], [], []
-    
-    if active_tab == 'category':
-        categories = conn.execute(
-            'SELECT *, CAST(COALESCE(is_active, 1) AS INTEGER) as is_active FROM category_lookup ORDER BY category_lookup_id ASC'
-        ).fetchall()
-    elif active_tab == 'activity':
-        activities = conn.execute('''
-            SELECT al.*, CAST(COALESCE(al.is_income, 1) AS INTEGER) as is_income, 
-                   CAST(COALESCE(al.is_active, 1) AS INTEGER) as is_active, cl.category_name 
-            FROM activity_lookup al
-            LEFT JOIN category_lookup cl ON al.category_lookup_id = cl.category_lookup_id
-            ORDER BY al.activity_name ASC
-        ''').fetchall()
-    elif active_tab == 'daily':
-        daily_activities = conn.execute('''
-            SELECT da.*, CAST(COALESCE(da.session_type, 1) AS INTEGER) as session_type, 
-                   CAST(COALESCE(da.is_active, 1) AS INTEGER) as is_active,
-                   al.activity_name, CAST(COALESCE(al.is_income, 1) AS INTEGER) as is_income, cl.category_name
-            FROM daily_activity da
-            LEFT JOIN activity_lookup al ON da.activity_lookup_id = al.activity_lookup_id
-            LEFT JOIN category_lookup cl ON al.category_lookup_id = cl.category_lookup_id
-            ORDER BY da.updated_ts DESC, da.txn_date DESC, da.daily_activity_id DESC
-        ''').fetchall()
-        
+    query = """
+        SELECT d.daily_activity_id, d.txn_date, d.session_type, d.person_name,
+               a.activity_name, c.category_name, a.is_income,
+               d.unit_price, d.quantity, d.total_amount, d.remarks, d.is_active
+        FROM daily_activity d
+        LEFT JOIN activity_lookup a ON d.activity_lookup_id = a.activity_lookup_id
+        LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
+        ORDER BY d.txn_date DESC, d.daily_activity_id DESC
+    """
+    cursor.execute(query)
+    data_rows = cursor.fetchall()
     conn.close()
-    return render_template('maintenance_data.html', 
-                           active_tab=active_tab,
-                           categories=categories,
-                           activities=activities,
-                           daily_activities=daily_activities)
+
+    return render_template('maintenance_data.html', data_rows=data_rows)
 
 # ---------------------------------------------------------
 # APPLICATION ENTRY POINT

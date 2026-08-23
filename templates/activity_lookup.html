@@ -14,7 +14,7 @@
                 <button type="button" class="btn-close" onclick="closeForm()" aria-label="Close"></button>
             </div>
             <div class="card-body p-4">
-                <form id="activityForm" method="POST" action="{{ url_for('activity_lookup_save') }}">
+                <form id="activityForm" method="POST" action="{{ url_for('admin_bp.activity_lookup_save') if 'admin_bp' in request.endpoint else url_for('activity_lookup_save') }}">
                     <input type="hidden" id="activity_lookup_id" name="activity_lookup_id" value="">
 
                     <div class="row g-3">
@@ -89,7 +89,7 @@
             </div>
             <div class="card-body p-4">
                 <div class="table-responsive">
-                    <table id="activityTable" class="table table-hover align-middle w-100">
+                    <table id="activityTable" class="table table-striped table-hover align-middle w-100">
                         <thead class="table-light border-bottom">
                             <tr>
                                 <th scope="col" class="fw-bold">Activity Name</th>
@@ -107,9 +107,9 @@
                                 <td class="text-dark">{{ act.category_name or '-' }}</td>
                                 <td class="text-center">
                                     {% if act.is_income == 0 %}
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">EXPENSE</span>
+                                        <span class="badge bg-danger">EXPENSE</span>
                                     {% else %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">INCOME</span>
+                                        <span class="badge bg-success">INCOME</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end text-success fw-semibold">${{ "%.2f"|format(act.default_amount or 0.0) }}</td>
@@ -117,7 +117,7 @@
                                     {% if act.is_active == 1 %}
                                         <span class="badge bg-success">Active</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Inactive</span>
+                                        <span class="badge bg-danger">Inactive</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-center">

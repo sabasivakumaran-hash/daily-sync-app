@@ -6,19 +6,19 @@
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 px-md-4">
     
     <!-- HEADER & YEAR SELECTOR -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
         <div>
-            <h4 class="fw-bold mb-0 text-dark">
-                <i class="fa-solid fa-chart-line me-2 text-success"></i>Financial Dashboard
+            <h4 class="fw-bold mb-0 text-fidelity-green">
+                <i class="fa-solid fa-chart-line me-2"></i>Financial Dashboard
             </h4>
             <p class="text-muted small mb-0">Executive summary for Fiscal Year {{ selected_year }}</p>
         </div>
-        <form method="GET" action="{{ url_for('dashboard_page') }}" class="d-flex align-items-center gap-2">
-            <label for="year" class="fw-bold small mb-0">Select Year:</label>
-            <select name="year" id="year" class="form-select form-select-sm border-success fw-bold" onchange="this.form.submit()">
+        <form method="GET" action="{{ url_for('dashboard_page') }}" class="d-flex align-items-center gap-2 text-nowrap">
+            <label for="year" class="fw-bold small mb-0 text-nowrap">Select Year:</label>
+            <select name="year" id="year" class="form-select form-select-sm border-success fw-bold w-auto" onchange="this.form.submit()">
                 {% for y in available_years %}
                     <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
@@ -29,14 +29,14 @@
     <!-- KPI CARDS ROW -->
     <div class="row g-3 mb-4">
         
-        <!-- Total Income (Up Arrow for Growth) -->
+        <!-- Total Income Card -->
         <div class="col-12 col-md-4">
-            <div class="card shadow-sm border-0 border-start border-4 border-success h-100">
+            <div class="card card-emerald shadow-sm border-0 border-top border-4 border-success h-100">
                 <div class="card-body py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-muted small fw-bold text-uppercase">Total Income</span>
-                            <h3 class="fw-bold text-success mb-0 mt-1">{{ total_income | currency }}</h3>
+                            <h3 class="fw-bold text-fidelity-green mb-0 mt-1">{{ total_income | currency }}</h3>
                         </div>
                         <div class="bg-success-subtle p-3 rounded-circle text-success">
                             <i class="fa-solid fa-circle-arrow-up fs-4"></i>
@@ -46,9 +46,9 @@
             </div>
         </div>
 
-        <!-- Total Expense (Down Arrow for Expenses/Outflow) -->
+        <!-- Total Expense Card -->
         <div class="col-12 col-md-4">
-            <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+            <div class="card card-emerald shadow-sm border-0 border-top border-4 border-danger h-100">
                 <div class="card-body py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -63,9 +63,9 @@
             </div>
         </div>
 
-        <!-- Net Surplus / Deficit -->
+        <!-- Net Surplus / Deficit Card -->
         <div class="col-12 col-md-4">
-            <div class="card shadow-sm border-0 border-start border-4 {% if net_surplus >= 0 %}border-primary{% else %}border-warning{% endif %} h-100">
+            <div class="card card-emerald shadow-sm border-0 border-top border-4 {% if net_surplus >= 0 %}border-primary{% else %}border-warning{% endif %} h-100">
                 <div class="card-body py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -89,10 +89,10 @@
         
         <!-- Monthly Breakdown Bar Chart -->
         <div class="col-12 col-lg-8">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card card-sage shadow-sm h-100">
                 <div class="card-header bg-white py-3 border-bottom">
                     <h6 class="card-title mb-0 fw-bold text-dark">
-                        <i class="fa-solid fa-chart-bar me-2 text-success"></i>Monthly Income vs. Expense
+                        <i class="fa-solid fa-chart-bar me-2 text-fidelity-green"></i>Monthly Income vs. Expense
                     </h6>
                 </div>
                 <div class="card-body p-3">
@@ -103,10 +103,10 @@
 
         <!-- Category Distribution Pie Chart -->
         <div class="col-12 col-lg-4">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card card-sage shadow-sm h-100">
                 <div class="card-header bg-white py-3 border-bottom">
                     <h6 class="card-title mb-0 fw-bold text-dark">
-                        <i class="fa-solid fa-chart-pie me-2 text-success"></i>Income by Category
+                        <i class="fa-solid fa-chart-pie me-2 text-fidelity-green"></i>Income by Category
                     </h6>
                 </div>
                 <div class="card-body p-3 d-flex align-items-center justify-content-center">
@@ -131,12 +131,12 @@
                     {
                         label: 'Income ($)',
                         data: {{ income_data | tojson }},
-                        backgroundColor: '#198754'
+                        backgroundColor: '#006847'
                     },
                     {
                         label: 'Expense ($)',
                         data: {{ expense_data | tojson }},
-                        backgroundColor: '#dc3545'
+                        backgroundColor: '#A61C1C'
                     }
                 ]
             },
@@ -166,8 +166,8 @@
                 datasets: [{
                     data: {{ cat_values | tojson }},
                     backgroundColor: [
-                        '#198754', '#0d6efd', '#ffc107', '#0dcaf0', 
-                        '#6f42c1', '#fd7e14', '#20c997', '#6c757d'
+                        '#006847', '#1A2662', '#D97706', '#0284C7', 
+                        '#7C3AED', '#EA580C', '#059669', '#4B5563'
                     ]
                 }]
             },

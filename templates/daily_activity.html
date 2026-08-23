@@ -3,19 +3,22 @@
 {% block title %}Daily Activity Entry - Temple Sync{% endblock %}
 
 {% block content %}
+<!-- Include Flatpickr CSS for Calendar Widget -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
 <div class="container-fluid py-3 px-md-4">
 
   <!-- TOP PAGE TITLE -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h3 class="fw-bold mb-0 text-success">Daily Activity Entry</h3>
+      <h3 class="fw-bold mb-0 text-fidelity-green">Daily Activity Entry</h3>
       <p class="text-muted small mb-0">Record and manage daily temple services and financial activities.</p>
     </div>
   </div>
 
-  <!-- PANEL 1: ENTRY FORM CARD (VISIBLE WHEN EDITING OR ADD CLICKED) -->
+  <!-- PANEL 1: ENTRY FORM CARD (HIDDEN BY DEFAULT UNLESS EDITING OR ADD CLICKED) -->
   <div class="card card-emerald shadow-sm mb-4 {% if not editing_txn and request.args.get('add') != 'true' %}d-none{% endif %}" id="formPanel">
-    <div class="card-header card-header-dark-emerald bg-success text-white py-2 d-flex justify-content-between align-items-center">
+    <div class="card-header card-header-dark-emerald text-white py-2 d-flex justify-content-between align-items-center">
       <h6 class="card-title mb-0 fw-bold">
         <i class="fa-solid {% if editing_txn %}fa-pen-to-square{% else %}fa-circle-plus{% endif %} me-2"></i>
         {% if editing_txn %}Edit Activity Entry #{{ editing_txn.daily_activity_id }}{% else %}New Activity Record{% endif %}
@@ -31,16 +34,19 @@
 
         <div class="row g-3">
           
-          <!-- 1. TRANSACTION DATE -->
+          <!-- 1. TRANSACTION DATE WITH FLATPICKR CALENDAR -->
           <div class="col-12 col-md-3">
             <label for="txn_date" class="form-label small fw-bold text-secondary mb-1">Transaction Date <span class="text-danger">*</span></label>
-            <input type="text" 
-                   class="form-control form-control-sm border-success-subtle" 
-                   id="txn_date" 
-                   name="txn_date" 
-                   placeholder="MM/DD/YYYY" 
-                   value="{{ editing_txn.txn_date | ui_date if editing_txn else '' }}" 
-                   required>
+            <div class="input-group input-group-sm">
+              <input type="text" 
+                     class="form-control form-control-sm border-success-subtle datepicker" 
+                     id="txn_date" 
+                     name="txn_date" 
+                     placeholder="MM/DD/YYYY" 
+                     value="{{ editing_txn.txn_date | ui_date if editing_txn else '' }}" 
+                     required>
+              <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-calendar-days"></i></span>
+            </div>
           </div>
 
           <!-- 2. SESSION (1 = AM, 0 = PM) -->
@@ -58,12 +64,11 @@
             <select class="form-select form-select-sm border-success-subtle" id="activity_lookup_id" name="activity_lookup_id" onchange="updatePriceFromActivity()" required>
               <option value="" disabled {% if not editing_txn %}selected{% endif %}>-- Select Activity --</option>
               {% for act in activities %}
-                {% set txn_type = 'INCOME' if act.is_income == 1 else 'EXPENSE' %}
                 <option value="{{ act.activity_lookup_id }}" 
                         data-price="{{ act.default_amount }}"
                         data-isincome="{{ act.is_income }}"
                         {% if editing_txn and editing_txn.activity_lookup_id == act.activity_lookup_id %}selected{% endif %}>
-                  [{{ txn_type }}] - {{ act.activity_name }} ({{ act.default_amount | currency }}) [{{ act.category_name or 'General' }}]
+                  {{ act.activity_name }} ({{ act.default_amount | currency }}) [{{ act.category_name or 'General' }}] - {{ act.txn_type_label }}
                 </option>
               {% endfor %}
             </select>
@@ -91,11 +96,13 @@
             <label for="unit_price" class="form-label small fw-bold text-secondary mb-1">Unit Price ($)</label>
             <input type="number" 
                    step="0.01" 
+                   min="0.00"
                    class="form-control form-control-sm border-success-subtle text-end font-monospace" 
                    id="unit_price" 
                    name="unit_price" 
                    value="{{ editing_txn.unit_price if editing_txn else '0.00' }}" 
-                   oninput="calculateTotal()">
+                   oninput="calculateTotal()"
+                   required>
           </div>
 
           <!-- 6. QUANTITY -->
@@ -107,7 +114,8 @@
                    id="quantity" 
                    name="quantity" 
                    value="{{ editing_txn.quantity if editing_txn else '1' }}" 
-                   oninput="calculateTotal()">
+                   oninput="calculateTotal()"
+                   required>
           </div>
 
           <!-- 7. TOTAL AMOUNT -->
@@ -159,16 +167,12 @@
 
   <!-- PANEL 2: TRANSACTIONS LIST TABLE CARD -->
   <div class="card card-emerald shadow-sm">
-    <div class="card-header card-header-dark-emerald bg-success text-white py-2 d-flex justify-content-between align-items-center">
+    <div class="card-header card-header-dark-emerald text-white py-2 d-flex justify-content-between align-items-center">
       <h6 class="card-title mb-0 fw-bold">
         <i class="fa-solid fa-list me-2"></i>Daily Activity List
       </h6>
       <div class="d-flex align-items-center gap-2">
-        <button type="button" 
-                id="addActivityBtn"
-                class="btn btn-light btn-sm fw-bold text-success shadow-sm" 
-                onclick="showFormPanel()" 
-                {% if editing_txn or request.args.get('add') == 'true' %}disabled title="Close or save current entry form first"{% endif %}>
+        <button type="button" class="btn btn-light btn-sm fw-bold text-success shadow-sm" onclick="showFormPanel()">
           <i class="fa-solid fa-plus me-1"></i> Add Daily Activity
         </button>
         <span class="badge bg-light text-dark fw-bold">{{ transactions | length }} Entries</span>
@@ -177,59 +181,61 @@
 
     <div class="card-body p-3">
       <div class="table-responsive">
-        <table id="dailyActivityTable" class="table table-hover align-middle mb-0 text-center small w-100">
-          <thead class="table-light text-uppercase fw-bold">
-            <tr>
-              <th>Date</th>
-              <th>Session</th>
-              <th class="text-start">Name</th>
-              <th class="text-start">Category / Activity</th>
-              <th>Type</th>
-              <th class="text-end">Unit Price</th>
-              <th>Qty</th>
-              <th class="text-end">Total</th>
-              <th class="text-start">Remarks</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for txn in transactions %}
-            <tr class="{% if txn.is_active == 0 %}table-secondary opacity-50{% endif %}">
-              <td>{{ txn.txn_date | ui_date }}</td>
-              <td>{{ txn.session_type | badge_session | safe }}</td>
-              <td class="text-start fw-semibold">{{ txn.person_name or '-' }}</td>
-              <td class="text-start">
-                <div class="small text-muted">{{ txn.category_name or '-' }}</div>
-                <div class="fw-bold text-dark">{{ txn.activity_name or '[Unlinked]' }}</div>
-              </td>
-              <td>{{ txn.is_income | badge_type | safe }}</td>
-              <td class="text-end font-monospace">{{ txn.unit_price | currency }}</td>
-              <td class="fw-semibold">{{ txn.quantity or 1 }}</td>
-              <td class="text-end font-monospace fw-bold">{{ txn.total_amount | currency }}</td>
-              <td class="text-start"><small class="text-muted">{{ txn.remarks or '-' }}</small></td>
-              <td>{{ txn.is_active | badge_status | safe }}</td>
-              <td>
-                <a href="{{ url_for('daily_activity_page', edit_id=txn.daily_activity_id) }}" 
-                   class="btn btn-outline-success btn-sm py-0 px-2" 
-                   title="Edit Record">
-                  <i class="fa-solid fa-pen-to-square"></i>
-                </a>
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="11" class="text-center text-muted py-4">No daily activity records found.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <table id="dailyActivityTable" class="table table-striped table-hover align-middle mb-0 text-center small w-100">
+    <thead class="table-light text-uppercase fw-bold">
+      <tr>
+        <th>Date</th>
+        <th>Session</th>
+        <th class="text-start">Name</th>
+        <th class="text-start">Category / Activity</th>
+        <th>Type</th>
+        <th class="text-end">Unit Price</th>
+        <th>Qty</th>
+        <th class="text-end">Total</th>
+        <th class="text-start">Remarks</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for txn in transactions %}
+      <tr class="{% if txn.is_active == 0 %}table-secondary opacity-50{% endif %}">
+        <td>{{ txn.txn_date | ui_date }}</td>
+        <td>{{ txn.session_type | badge_session | safe }}</td>
+        <td class="text-start fw-semibold">{{ txn.person_name or '-' }}</td>
+        <td class="text-start">
+          <div class="small text-muted">{{ txn.category_name or '-' }}</div>
+          <div class="fw-bold text-dark">{{ txn.activity_name or '[Unlinked]' }}</div>
+        </td>
+        <td>{{ txn.is_income | badge_type | safe }}</td>
+        <td class="text-end font-monospace">{{ txn.unit_price | currency }}</td>
+        <td class="fw-semibold">{{ txn.quantity or 1 }}</td>
+        <td class="text-end font-monospace fw-bold">{{ txn.total_amount | currency }}</td>
+        <td class="text-start"><small class="text-muted">{{ txn.remarks or '-' }}</small></td>
+        <td>{{ txn.is_active | badge_status | safe }}</td>
+        <td>
+          <a href="{{ url_for('daily_activity_page', edit_id=txn.daily_activity_id) }}" 
+             class="btn btn-outline-success btn-sm py-0 px-2" 
+             title="Edit Record">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="11" class="text-center text-muted py-4">No daily activity records found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
   </div>
 
 </div>
 {% endblock %}
 
 {% block scripts %}
+<!-- Include Flatpickr JS Script -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <script>
   function calculateTotal() {
     const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0.0;
@@ -248,26 +254,16 @@
 
   function showFormPanel() {
     const panel = document.getElementById('formPanel');
-    const addBtn = document.getElementById('addActivityBtn');
     if (panel) {
       panel.classList.remove('d-none');
       panel.scrollIntoView({ behavior: 'smooth' });
-    }
-    if (addBtn) {
-      addBtn.disabled = true;
-      addBtn.title = "Close or save current entry form first";
     }
   }
 
   function hideFormPanel() {
     const panel = document.getElementById('formPanel');
-    const addBtn = document.getElementById('addActivityBtn');
     if (panel) {
       panel.classList.add('d-none');
-    }
-    if (addBtn) {
-      addBtn.disabled = false;
-      addBtn.removeAttribute('title');
     }
     if (window.location.search.includes('edit_id') || window.location.search.includes('add')) {
       window.location.href = "{{ url_for('daily_activity_page') }}";
@@ -275,6 +271,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function() {
+    // Initialize DataTables
     if (window.jQuery && $.fn.DataTable) {
       $('#dailyActivityTable').DataTable({
         order: [], 
@@ -288,6 +285,7 @@
       });
     }
 
+    // Auto-fill Today's Date in MM/DD/YYYY if empty
     const dateInput = document.getElementById('txn_date');
     if (dateInput && !dateInput.value) {
       const today = new Date();
@@ -296,6 +294,12 @@
       const y = today.getFullYear();
       dateInput.value = `${m}/${d}/${y}`;
     }
+
+    // Initialize Flatpickr Calendar Widget in MM/DD/YYYY format
+    flatpickr(".datepicker", {
+      dateFormat: "m/d/Y",
+      allowInput: true
+    });
   });
 </script>
 {% endblock %}

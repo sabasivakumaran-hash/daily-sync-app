@@ -2,31 +2,39 @@
    TEMPLE SYNC GLOBAL COLOR SYSTEM & DESIGN TOKENS
    ========================================================================== */
 :root {
-    --temple-header-bg: #0d5232;       /* Deep Emerald Header */
-    --temple-accent-bg: #e8f5e9;       /* Soft Sage Accent */
-    --temple-footer-bg: #0d5232;       /* Deep Emerald Footer */
-    --temple-green-primary: #198754;   /* Bootstrap Success Base */
-    --temple-green-hover: #146c43;     /* Darker Green Hover */
-    --temple-green-light: #e8f5e9;     /* Light Green Highlight */
-    --temple-border-color: #c8e6c9;    /* Muted Green Border */
+    --temple-header-bg: #006847;       /* Fidelity Green Header */
+    --temple-accent-bg: #f4f8f6;       /* Bright Sage Accent */
+    --temple-footer-bg: #006847;       /* Fidelity Green Footer */
+    --temple-navy-text: #1a2662;       /* Institutional Navy Text */
+    --temple-green-primary: #006847;   /* Fidelity Green Base */
+    --temple-green-hover: #004d34;     /* Darker Green Hover */
+    --temple-green-light: #e6f0ec;     /* Light Green Highlight */
+    --temple-border-color: #d1e2db;    /* Crisp Border Line */
+    --temple-crimson: #a61c1c;         /* Crimson Red for Expenses */
+    --temple-row-even: #f4f8f6;        /* Zebra Striping Secondary */
+    --temple-row-odd: #fafcfb;         /* Zebra Striping Primary */
 }
 
 /* ==========================================================================
    1. GLOBAL BODY & CONTAINER STYLES
    ========================================================================== */
 body {
-    background-color: #f8f9fa;
-    color: #212529;
+    background-color: #fafcfb;
+    color: var(--temple-navy-text);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Flex grow wrapper for sticky footer */
 main {
     flex: 1 0 auto;
 }
 
+/* Color Helper Utility Class */
+.text-fidelity-green {
+    color: var(--temple-green-primary) !important;
+}
+
 /* ==========================================================================
-   2. HEADER, LOGO & SUBTITLE STYLES (EXTRACTED FROM INLINE)
+   2. HEADER, LOGO & SUBTITLE STYLES
    ========================================================================== */
 .bg-temple-header {
     background-color: var(--temple-header-bg) !important;
@@ -46,7 +54,7 @@ main {
 
 .header-subtitle {
     font-size: 1.1rem;
-    opacity: 0.9;
+    opacity: 0.95;
 }
 
 .bg-temple-accent {
@@ -63,43 +71,58 @@ main {
    ========================================================================== */
 .btn-temple-maintenance {
     background-color: #ffffff;
-    color: var(--temple-header-bg) !important;
+    color: var(--temple-navy-text) !important;
     border: 1px solid var(--temple-border-color) !important;
 }
 
 .btn-temple-maintenance:hover,
 .btn-temple-maintenance:focus {
-    background-color: var(--temple-accent-bg) !important;
+    background-color: var(--temple-green-light) !important;
     color: var(--temple-green-hover) !important;
 }
 
 /* ==========================================================================
-   4. CARD PANELS (EMERALD & SAGE TEMPLE THEME)
+   4. CARD PANELS & KPI METRICS
    ========================================================================== */
 .card-emerald {
     border: 1px solid var(--temple-border-color);
     border-radius: 0.5rem;
     overflow: hidden;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.04);
 }
 
 .card-header-dark-emerald {
     background-color: var(--temple-header-bg) !important;
+    color: #ffffff !important;
 }
 
 .card-sage {
     border: 1px solid var(--temple-border-color);
     border-radius: 0.5rem;
     background-color: #ffffff;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03);
 }
 
 /* ==========================================================================
-   5. DATATABLES & TABLE STYLING (ZEBRA STRIPING & GREEN PAGINATION)
+   5. DATATABLES & ALTERNATING TABLE ROW STYLING (ZEBRA STRIPING)
    ========================================================================== */
-.table-hover tbody tr:hover {
-    background-color: rgba(25, 135, 84, 0.05) !important;
+.table {
+    border-color: var(--temple-border-color);
 }
 
-/* DataTables Pagination Green Theme (Extracted from Templates) */
+.table tbody tr:nth-of-type(odd) {
+    background-color: var(--temple-row-odd) !important;
+}
+
+.table tbody tr:nth-of-type(even) {
+    background-color: var(--temple-row-even) !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 104, 71, 0.08) !important;
+}
+
+/* DataTables Pagination Green Theme */
 .dataTables_wrapper .pagination .page-item.active .page-link {
     background-color: var(--temple-green-primary) !important;
     border-color: var(--temple-green-primary) !important;
@@ -115,7 +138,6 @@ main {
     background-color: var(--temple-green-light) !important;
 }
 
-/* Search input rounding */
 .dataTables_filter input {
     border-radius: 0.375rem;
     border: 1px solid #ced4da;
@@ -125,68 +147,36 @@ main {
 .dataTables_filter input:focus {
     border-color: var(--temple-green-primary);
     outline: 0;
-    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(0, 104, 71, 0.2);
 }
 
 /* ==========================================================================
-   6. CUSTOM BADGES & STATUS INDICATORS
+   6. CUSTOM BADGES & HARMONIZED EXPENSE PALETTE
    ========================================================================== */
 .badge-income {
-    background-color: #d1e7dd;
-    color: #0f5132;
-    border: 1px solid #badbcc;
+    background-color: #e6f0ec !important;
+    color: var(--temple-green-primary) !important;
+    border: 1px solid #b3d1c5 !important;
     font-weight: 600;
 }
 
 .badge-expense {
-    background-color: #f8d7da;
-    color: #842029;
-    border: 1px solid #f5c2c7;
+    background-color: #fdf2f2 !important;
+    color: var(--temple-crimson) !important;
+    border: 1px solid #f5c2c7 !important;
     font-weight: 600;
 }
-/* ==========================================================================
-   7. HARMONIZED EXPENSE PALETTE (TERRACOTTA / MUTED ROSE)
-   ========================================================================== */
-/* Replaces stark primary red with earthy terracotta/rose that blends with green */
-.badge-expense,
-.bg-danger-subtle {
-    background-color: #fdf2f2 !important; /* Soft blush tint */
-    color: #9b2c2c !important;            /* Muted crimson text */
-    border: 1px solid #f87171 !important;  /* Soft coral border */
-}
 
-/* Text overrides for expense values and table headers */
-.text-danger {
-    color: #c05621 !important;            /* Warm Terracotta */
-}
-
-/* Border overrides for alert/badge elements */
-.border-danger-subtle {
-    border-color: #f87171 !important;
-}
 /* ==========================================================================
-   8. REPORTS EXPENSE HIGHLIGHT (DARK CRIMSON)
+   7. REPORTS EXPENSE HIGHLIGHT (DARK CRIMSON)
    ========================================================================== */
-/* Darker red styling for Expense / Total Expense summary rows */
 .report-expense-row,
 tr.report-expense-row td,
 .expense-total-text {
-    color: #8b0000 !important;       /* Dark Red / Crimson */
+    color: var(--temple-crimson) !important;
     font-weight: 700 !important;
 }
 
-/* Optional darker subtle background tint for the expense summary row */
 tr.report-expense-row {
     background-color: #fdf2f2 !important;
-}
-/* Custom Expense Row Dark Red Accent */
-.report-expense-row,
-.report-expense-row td,
-.expense-total-text {
-    color: #8b0000 !important;       /* Dark Crimson Red */
-    font-weight: 700 !important;
-}
-
-tr.report-expense-row {
-    background-color: #fdf2f2 !important; /* Soft blush tint background */
 }

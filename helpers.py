@@ -95,14 +95,15 @@ def badge_session_filter(value):
     return '<span class="badge bg-light text-dark border">PM</span>'
 
 def badge_type_filter(value):
-    """Renders Transaction Type Badge (1 = INCOME, 0 = EXPENSE)."""
+    """Renders Transaction Type Badge (1 = Income, 0 = Expense)."""
     try:
         val = int(value) if value is not None else 1
     except (ValueError, TypeError):
         val = 1
-    if val == 0:
-        return '<span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">EXPENSE</span>'
-    return '<span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">INCOME</span>'
+        
+    if val == 1:
+        return '<span class="badge bg-success">INCOME</span>'
+    return '<span class="badge bg-danger">EXPENSE</span>'
 
 def badge_status_filter(value):
     """Renders Record Status Badge (1 = Active, 0 = Inactive)."""
@@ -110,6 +111,7 @@ def badge_status_filter(value):
         val = int(value) if value is not None else 1
     except (ValueError, TypeError):
         val = 1
+        
     if val == 1:
-        return '<span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>'
-    return '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>'
+        return '<span class="badge bg-success">Active</span>'
+    return '<span class="badge bg-danger">Inactive</span>'

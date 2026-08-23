@@ -4,103 +4,94 @@
 
 {% block content %}
 <div class="container-fluid py-3 px-md-4">
-  
-  <!-- TOP CONTROL & FILTER PANEL (SPLIT INTO TWO ROWS) -->
-  <div class="card card-emerald shadow-sm mb-3">
-    <div class="card-header bg-white py-2 border-bottom">
-      <form method="GET" action="{{ url_for('dynamic.reports_page') }}">
-        <input type="hidden" name="report_type" id="report_type" value="{{ selected_report }}">
+  <div class="card card-emerald shadow-sm">
+    
+    <!-- TOP REPORT NAVIGATION TABS & EXPORT BUTTONS -->
+    <div class="card-header bg-white py-2 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+      
+      <!-- HORIZONTAL REPORT SELECTOR BUTTONS -->
+      <div class="btn-group shadow-sm" role="group" aria-label="Report Selection">
+        <a href="{{ url_for('dynamic.reports_page', report_type='income_expense', fiscal_year=selected_year, start_date=start_date, end_date=end_date) }}" 
+           class="btn btn-sm fw-bold {% if selected_report == 'income_expense' %}btn-success{% else %}btn-outline-success{% endif %}">
+          <i class="fa-solid fa-table-cells me-1"></i> Income & Expense
+        </a>
+        <a href="{{ url_for('dynamic.reports_page', report_type='fiscal_report', fiscal_year=selected_year, start_date=start_date, end_date=end_date) }}" 
+           class="btn btn-sm fw-bold {% if selected_report == 'fiscal_report' %}btn-success{% else %}btn-outline-success{% endif %}">
+          <i class="fa-solid fa-file-invoice me-1"></i> Fiscal Report
+        </a>
+        <a href="{{ url_for('dynamic.reports_page', report_type='activity_summary', fiscal_year=selected_year, start_date=start_date, end_date=end_date) }}" 
+           class="btn btn-sm fw-bold {% if selected_report == 'activity_summary' %}btn-success{% else %}btn-outline-success{% endif %}">
+          <i class="fa-solid fa-list-check me-1"></i> Activity Summary
+        </a>
+      </div>
 
-        <!-- ROW 1: REPORT SELECTION BUTTONS (LEFT) & EXPORT BUTTONS (RIGHT) -->
-        <div class="row g-2 align-items-center mb-2">
-          <!-- Left: 3 Report Selection Buttons -->
-          <div class="col-12 col-md-7">
-            <div class="btn-group" role="group" style="max-width: 500px;">
-              <a href="{{ url_for('dynamic.reports_page', report_type='income_expense', start_date=start_date, end_date=end_date) }}" 
-                 class="btn btn-sm fw-bold {% if selected_report == 'income_expense' %}btn-success{% else %}btn-outline-success{% endif %}">
-                <i class="fa-solid fa-table-cells me-1"></i> Income & Expense
-              </a>
-              <a href="{{ url_for('dynamic.reports_page', report_type='fiscal_report', fiscal_year=selected_year, start_date=start_date, end_date=end_date) }}" 
-                 class="btn btn-sm fw-bold {% if selected_report == 'fiscal_report' %}btn-success{% else %}btn-outline-success{% endif %}">
-                <i class="fa-solid fa-file-invoice me-1"></i> Fiscal Report
-              </a>
-              <a href="{{ url_for('dynamic.reports_page', report_type='activity_summary', start_date=start_date, end_date=end_date) }}" 
-                 class="btn btn-sm fw-bold {% if selected_report == 'activity_summary' %}btn-success{% else %}btn-outline-success{% endif %}">
-                <i class="fa-solid fa-list-check me-1"></i> Activity Summary
-              </a>
-            </div>
-          </div>
+      <!-- EXPORT BUTTONS -->
+      <div class="btn-group shadow-sm" role="group">
+        <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="window.print()">
+          <i class="fa-solid fa-file-excel me-1 text-success"></i> Excel
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="window.print()">
+          <i class="fa-solid fa-file-pdf me-1 text-danger"></i> PDF
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="window.print()">
+          <i class="fa-solid fa-print me-1"></i> Print
+        </button>
+      </div>
+    </div>
 
-          <!-- Right: Excel, PDF, Print Export Buttons -->
-          <div class="col-12 col-md-5 d-flex justify-content-md-end gap-1">
-            <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="window.print()">
-              <i class="fa-solid fa-file-excel text-success me-1"></i> Excel
-            </button>
-            <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="window.print()">
-              <i class="fa-solid fa-file-pdf text-danger me-1"></i> PDF
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="window.print()">
-              <i class="fa-solid fa-print me-1"></i> Print
-            </button>
-          </div>
+    <!-- DATE FILTERS & GENERATE BUTTON -->
+    <div class="card-body py-2 px-3 border-bottom bg-light">
+      <form method="GET" action="{{ url_for('dynamic.reports_page') }}" class="d-flex align-items-center flex-wrap gap-3">
+        <input type="hidden" name="report_type" value="{{ selected_report }}">
+
+        {% if selected_report == 'fiscal_report' %}
+        <div class="d-flex align-items-center gap-2">
+          <label for="fiscal_year" class="form-label small fw-bold mb-0 text-secondary">Year:</label>
+          <select class="form-select form-select-sm border-success-subtle fw-bold" id="fiscal_year" name="fiscal_year" style="width: 100px;" onchange="updateFiscalDates(this.value)">
+            {% for yr in available_years %}
+              <option value="{{ yr }}" {% if selected_year == yr %}selected{% endif %}>{{ yr }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="d-flex align-items-center gap-2">
+          <label for="start_date" class="form-label small fw-bold mb-0 text-secondary">From:</label>
+          <input type="date" class="form-control form-control-sm border-success-subtle" id="start_date" name="start_date" value="{{ start_date }}" style="width: 140px;">
         </div>
 
-        <hr class="my-2 border-secondary-subtle">
-
-        <!-- ROW 2: LEFT-ALIGNED FILTERS AND GENERATE BUTTON -->
-        <div class="row g-2 align-items-center">
-          <div class="col-12 d-flex align-items-center justify-content-start gap-3">
-            {% if selected_report == 'fiscal_report' %}
-              <div class="d-flex align-items-center gap-1">
-                <label for="fiscal_year" class="form-label small fw-bold mb-0 text-secondary">Year:</label>
-                <select class="form-select form-select-sm border-success-subtle fw-bold" id="fiscal_year" name="fiscal_year" style="width: 100px;" onchange="updateFiscalDates(this.value)">
-                  {% for yr in available_years %}
-                    <option value="{{ yr }}" {% if selected_year == yr %}selected{% endif %}>{{ yr }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-            {% endif %}
-
-            <div class="d-flex align-items-center gap-1">
-              <label for="start_date" class="form-label small fw-bold mb-0 text-secondary">From:</label>
-              <input type="date" class="form-control form-control-sm border-success-subtle" id="start_date" name="start_date" value="{{ start_date }}" style="width: 140px;">
-            </div>
-
-            <div class="d-flex align-items-center gap-1">
-              <label for="end_date" class="form-label small fw-bold mb-0 text-secondary">To:</label>
-              <input type="date" class="form-control form-control-sm border-success-subtle" id="end_date" name="end_date" value="{{ end_date }}" style="width: 140px;">
-            </div>
-
-            <button type="submit" class="btn btn-success btn-sm fw-bold shadow-sm text-nowrap px-3">
-              <i class="fa-solid fa-magnifying-glass me-1"></i> Generate Report
-            </button>
-          </div>
+        <div class="d-flex align-items-center gap-2">
+          <label for="end_date" class="form-label small fw-bold mb-0 text-secondary">To:</label>
+          <input type="date" class="form-control form-control-sm border-success-subtle" id="end_date" name="end_date" value="{{ end_date }}" style="width: 140px;">
         </div>
 
+        <div>
+          <button type="submit" class="btn btn-success btn-sm fw-bold shadow-sm">
+            <i class="fa-solid fa-magnifying-glass me-1"></i> Generate Report
+          </button>
+        </div>
       </form>
     </div>
-  </div>
 
-  <!-- REPORT DISPLAY AREA (FULL SCREEN WIDTH) -->
-  <div class="card card-emerald shadow-sm">
-    <div class="card-body p-3">
+    <!-- REPORT DISPLAY CONTAINER -->
+    <div class="card-body p-4">
       
-      <!-- LETTERHEAD -->
-      <div class="text-center mb-3">
+      <!-- LETTERHEAD HEADER -->
+      <div class="text-center mb-4">
         <h4 class="fw-bold text-dark mb-0">SRI GANESH TEMPLE SOCIETY OF B.C.</h4>
         <p class="small text-muted mb-0">3525 Fraser Street, Vancouver, BC, V5V 4C5, CANADA | Tel. 604 879 3505</p>
         <p class="small text-muted mb-0">Email: sriganeshtemplevancouverbc@gmail.com</p>
         <p class="small text-muted mb-2">Incorporation #: S39361 | Charity #: 86957 1026 RR0001</p>
-        <h5 class="fw-bold text-success text-uppercase text-decoration-underline mb-1">
+        <h5 class="fw-bold text-success text-uppercase text-decoration-underline mb-0">
           {% if selected_report == 'activity_summary' %}
-            DETAILED ACTIVITY MATRIX STATEMENT
+            ACTIVITY SUMMARY
           {% elif selected_report == 'fiscal_report' %}
             FISCAL YEAR FINANCIAL REPORT
           {% else %}
-            INCOME EXPENSE STATEMENT
+            INCOME & EXPENSE STATEMENT
           {% endif %}
         </h5>
-        <span class="badge bg-light text-dark border px-3 py-1">
+        <span class="badge bg-light text-dark border px-3 py-1 mt-1">
           {% if selected_report == 'fiscal_report' %}
             Fiscal Year: {{ selected_year }} ({{ start_date | ui_date }} to {{ end_date | ui_date }})
           {% else %}
@@ -111,16 +102,16 @@
 
       {% if selected_report in ['income_expense', 'fiscal_report'] %}
       
-      <!-- DYNAMIC INCOME vs EXPENSE / FISCAL TABLE -->
-      <div class="table-responsive" style="max-height: 70vh;">
+      <!-- DYNAMIC MONTH BUCKET TABLE -->
+      <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle mb-0 text-center small w-100">
-          <thead class="table-light text-uppercase fw-bold sticky-top">
+          <thead class="table-light text-uppercase fw-bold">
             <tr>
-              <th class="text-start bg-light" style="min-width: 180px; position: sticky; left: 0; z-index: 2;">Category</th>
+              <th class="text-start" style="min-width: 160px;">Category</th>
               {% for mb in month_buckets %}
-                <th style="min-width: 90px;">{{ mb.label }}</th>
+                <th>{{ mb.label }}</th>
               {% endfor %}
-              <th class="table-active" style="min-width: 100px;">Total</th>
+              <th class="table-active">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -132,9 +123,9 @@
             </tr>
             {% for cat_name, m_data in income_categories.items() %}
             <tr>
-              <td class="text-start fw-semibold text-dark bg-white" style="position: sticky; left: 0; z-index: 1;">{{ cat_name }}</td>
+              <td class="text-start fw-semibold text-dark">{{ cat_name }}</td>
               {% for mb in month_buckets %}
-                <td>{{ "%.2f"|format(m_data[mb.key]) if m_data[mb.key] is defined and m_data[mb.key] > 0 else "0.00" }}</td>
+                <td>{{ m_data[mb.key] | currency }}</td>
               {% endfor %}
               <td class="fw-bold table-active text-success">{{ m_data['total'] | currency }}</td>
             </tr>
@@ -144,9 +135,9 @@
 
             <!-- TOTAL INCOME ROW -->
             <tr class="table-success-subtle fw-bold border-top border-2">
-              <td class="text-start text-success bg-success-subtle" style="position: sticky; left: 0; z-index: 1;">Total Income</td>
+              <td class="text-start text-success">Total Income</td>
               {% for mb in month_buckets %}
-                <td class="text-success">{{ "%.2f"|format(income_monthly_totals[mb.key]) if income_monthly_totals[mb.key] is defined else "0.00" }}</td>
+                <td class="text-success">{{ income_monthly_totals[mb.key] | currency }}</td>
               {% endfor %}
               <td class="table-active text-success fw-bold">{{ total_income_period | currency }}</td>
             </tr>
@@ -159,9 +150,9 @@
             </tr>
             {% for cat_name, m_data in expense_categories.items() %}
             <tr>
-              <td class="text-start fw-semibold expense-total-text bg-white" style="position: sticky; left: 0; z-index: 1;">{{ cat_name }}</td>
+              <td class="text-start fw-semibold expense-total-text">{{ cat_name }}</td>
               {% for mb in month_buckets %}
-                <td class="expense-total-text">{{ "%.2f"|format(m_data[mb.key]) if m_data[mb.key] is defined and m_data[mb.key] > 0 else "0.00" }}</td>
+                <td class="expense-total-text">{{ m_data[mb.key] | currency }}</td>
               {% endfor %}
               <td class="fw-bold table-active expense-total-text">{{ m_data['total'] | currency }}</td>
             </tr>
@@ -171,19 +162,19 @@
 
             <!-- TOTAL EXPENSE ROW -->
             <tr class="report-expense-row fw-bold border-top border-2">
-              <td class="text-start expense-total-text" style="position: sticky; left: 0; z-index: 1;">Total Expense</td>
+              <td class="text-start expense-total-text">Total Expense</td>
               {% for mb in month_buckets %}
-                <td class="expense-total-text">{{ "%.2f"|format(expense_monthly_totals[mb.key]) if expense_monthly_totals[mb.key] is defined else "0.00" }}</td>
+                <td class="expense-total-text">{{ expense_monthly_totals[mb.key] | currency }}</td>
               {% endfor %}
               <td class="table-active expense-total-text fw-bold">{{ total_expense_period | currency }}</td>
             </tr>
 
             <!-- NET SURPLUS ROW -->
             <tr class="table-success fw-bold border-top border-3 text-success">
-              <td class="text-start fw-bold text-success bg-success-subtle" style="position: sticky; left: 0; z-index: 1;">Net Surplus / (Deficit)</td>
+              <td class="text-start fw-bold text-success">Net Surplus / (Deficit)</td>
               {% for mb in month_buckets %}
                 <td class="fw-bold text-success">
-                  {{ "%.2f"|format(net_monthly_surplus[mb.key]) if net_monthly_surplus[mb.key] is defined else "0.00" }}
+                  {{ net_monthly_surplus[mb.key] | currency }}
                 </td>
               {% endfor %}
               <td class="table-active fw-bold text-success">
@@ -196,77 +187,89 @@
 
       {% elif selected_report == 'activity_summary' %}
 
-      <!-- ACTIVITY SUMMARY MATRIX TABLE WITH STICKY FIRST COLUMN -->
-      <div class="table-responsive" style="max-height: 70vh;">
+      <!-- DETAILED ACTIVITY SUMMARY TABLE -->
+      <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle mb-0 text-center small w-100">
-          <thead class="table-light text-uppercase fw-bold sticky-top">
+          <thead class="table-light text-uppercase fw-bold">
             <tr>
-              <th class="text-start bg-light" style="min-width: 180px; position: sticky; left: 0; z-index: 2;">Activity</th>
+              <th class="text-start" style="min-width: 160px;">Activity</th>
               <th class="text-start" style="min-width: 140px;">Category</th>
-              <th>Type</th>
               {% for mb in month_buckets %}
-                <th style="min-width: 90px;">{{ mb.label }}</th>
+                <th>{{ mb.label }}</th>
               {% endfor %}
-              <th class="table-active" style="min-width: 100px;">Total</th>
+              <th class="table-active">Total</th>
             </tr>
           </thead>
           <tbody>
             {% for row in act_matrix %}
-            <tr class="{% if row.is_income == 0 %}report-expense-row{% endif %}">
-              <td class="text-start fw-bold bg-white {% if row.is_income == 0 %}expense-total-text{% else %}text-dark{% endif %}" 
-                  style="position: sticky; left: 0; z-index: 1;">
-                {{ row.activity_name }}
-              </td>
-              <td class="text-start text-secondary fw-semibold">{{ row.category_name }}</td>
-              <td>{{ row.is_income | badge_type | safe }}</td>
-              
-              {% for mb in month_buckets %}
-                <td class="{% if row.is_income == 0 %}expense-total-text{% endif %}">
-                  {{ "%.2f"|format(row.months[mb.key]) if row.months[mb.key] is defined and row.months[mb.key] > 0 else "-" }}
+              <tr class="{% if row.is_income == 0 %}report-expense-row{% endif %}">
+                <td class="text-start fw-bold {% if row.is_income == 0 %}expense-total-text{% else %}text-dark{% endif %}">{{ row.activity_name }}</td>
+                <td class="text-start text-secondary">{{ row.category_name }}</td>
+                {% for mb in month_buckets %}
+                  <td class="{% if row.is_income == 0 %}expense-total-text{% endif %}">
+                    {{ row.months[mb.key] | currency }}
+                  </td>
+                {% endfor %}
+                <td class="fw-bold table-active {% if row.is_income == 0 %}expense-total-text{% else %}text-success{% endif %}">
+                  {{ row.total | currency }}
                 </td>
-              {% endfor %}
-              
-              <td class="fw-bold table-active {% if row.is_income == 0 %}expense-total-text{% else %}text-success{% endif %}">
-                {{ row.total | currency }}
-              </td>
-            </tr>
+              </tr>
             {% else %}
-            <tr><td colspan="{{ month_buckets | length + 4 }}" class="text-center text-muted py-4">No records found for the selected range.</td></tr>
+              <tr><td colspan="{{ month_buckets | length + 3 }}" class="text-center text-muted py-4">No activity data available for selected criteria.</td></tr>
             {% endfor %}
 
-            <!-- CATEGORY SUBTOTALS SUMMARY SECTION -->
+            <!-- CATEGORY SUBTOTALS SECTION -->
             {% if cat_subtotals %}
-            <tr class="table-dark fw-bold text-start">
-              <td colspan="{{ month_buckets | length + 4 }}" class="text-white bg-dark">
-                <i class="fa-solid fa-layer-group me-2"></i>CATEGORY SUBTOTALS SUMMARY
-              </td>
-            </tr>
-            {% for cat_name, sub_data in cat_subtotals.items() %}
-            <tr class="table-secondary fw-bold">
-              <td colspan="3" class="text-start text-dark bg-secondary-subtle" style="position: sticky; left: 0; z-index: 1;">
-                Subtotal: {{ cat_name }}
-              </td>
-              {% for mb in month_buckets %}
-                <td>{{ "%.2f"|format(sub_data['NET'][mb.key]) if sub_data['NET'][mb.key] is defined else "0.00" }}</td>
+              <tr class="table-light fw-bold text-start border-top border-2">
+                <td colspan="{{ month_buckets | length + 3 }}" class="text-dark">
+                  <i class="fa-solid fa-layer-group me-1"></i> CATEGORY NET SUBTOTALS
+                </td>
+              </tr>
+              {% for cat_name, sub_data in cat_subtotals.items() %}
+              <tr class="fw-semibold">
+                <td colspan="2" class="text-start ps-3 text-secondary">{{ cat_name }} (Subtotal)</td>
+                {% for mb in month_buckets %}
+                  <td class="{% if sub_data['NET'][mb.key] < 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ sub_data['NET'][mb.key] | currency }}
+                  </td>
+                {% endfor %}
+                <td class="fw-bold table-active {% if sub_data['total'] < 0 %}text-danger{% else %}text-success{% endif %}">
+                  {{ sub_data['total'] | currency }}
+                </td>
+              </tr>
               {% endfor %}
-              <td class="table-active bg-secondary text-white">{{ sub_data['total'] | currency }}</td>
-            </tr>
-            {% endfor %}
             {% endif %}
-          </tbody>
 
-          <!-- GRAND TOTAL FOOTER -->
-          {% if act_matrix %}
-          <tfoot class="table-dark fw-bold sticky-bottom">
-            <tr>
-              <td colspan="3" class="text-start" style="position: sticky; left: 0; z-index: 1;">Grand Total (Net)</td>
-              {% for mb in month_buckets %}
-                <td>{{ "%.2f"|format(grand_totals['NET'][mb.key]) if grand_totals['NET'][mb.key] is defined else "0.00" }}</td>
-              {% endfor %}
-              <td class="text-warning">{{ grand_totals['NET']['total'] | currency }}</td>
-            </tr>
-          </tfoot>
-          {% endif %}
+            <!-- GRAND TOTALS -->
+            {% if grand_totals %}
+              <tr class="table-success-subtle fw-bold border-top border-2">
+                <td colspan="2" class="text-start text-success">GRAND TOTAL INCOME</td>
+                {% for mb in month_buckets %}
+                  <td class="text-success">{{ grand_totals['INCOME'][mb.key] | currency }}</td>
+                {% endfor %}
+                <td class="table-active text-success fw-bold">{{ grand_totals['INCOME']['total'] | currency }}</td>
+              </tr>
+              <tr class="report-expense-row fw-bold border-top border-2">
+                <td colspan="2" class="text-start expense-total-text">GRAND TOTAL EXPENSES</td>
+                {% for mb in month_buckets %}
+                  <td class="expense-total-text">{{ grand_totals['EXPENSE'][mb.key] | currency }}</td>
+                {% endfor %}
+                <td class="table-active expense-total-text fw-bold">{{ grand_totals['EXPENSE']['total'] | currency }}</td>
+              </tr>
+              <tr class="table-success fw-bold border-top border-3 text-success fs-6">
+                <td colspan="2" class="text-start fw-bold text-success">GRAND NET SURPLUS / (DEFICIT)</td>
+                {% for mb in month_buckets %}
+                  <td class="fw-bold {% if grand_totals['NET'][mb.key] < 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ grand_totals['NET'][mb.key] | currency }}
+                  </td>
+                {% endfor %}
+                <td class="table-active fw-bold {% if grand_totals['NET']['total'] < 0 %}text-danger{% else %}text-success{% endif %}">
+                  {{ grand_totals['NET']['total'] | currency }}
+                </td>
+              </tr>
+            {% endif %}
+
+          </tbody>
         </table>
       </div>
 
@@ -274,7 +277,6 @@
 
     </div>
   </div>
-
 </div>
 
 <script>

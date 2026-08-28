@@ -221,16 +221,17 @@
     // 2. Initialize DataTables
     let table = null;
     if (window.jQuery && $.fn.DataTable) {
-      table = $('#bankLedgerTable').DataTable({
-        order: [], 
-        pageLength: 25,
-        lengthMenu: [10, 25, 50, 100],
-        responsive: true,
-        pagingType: 'simple_numbers',
-        columnDefs: [
-          { orderable: false, targets: 0 }
-        ]
-      });
+        table = $('#bankLedgerTable').DataTable({
+            stateSave: true, // <--- REMEMBERS PAGE NUMBER AND PAGE SIZE ACROSS RELOADS
+            order: [], 
+            pageLength: 25,
+            lengthMenu: [10, 25, 50, 100],
+            responsive: true,
+            pagingType: 'simple_numbers',
+            columnDefs: [
+            { orderable: false, targets: 0 }
+            ]
+        });
     }
 
     // 3. Event Delegation for Cleared Toggle Checkboxes (Works across ALL pages & page sizes)

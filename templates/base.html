@@ -56,6 +56,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link text-dark px-3 {% if request.endpoint == 'bank_ledger_page' %}active{% endif %}" href="{{ url_for('bank_ledger_page') }}">
+                            <i class="fa-solid fa-building-columns me-1 text-fidelity-green"></i> Bank & Cash Register
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-dark px-3 {% if request.endpoint == 'assets_page' %}active{% endif %}" href="{{ url_for('assets_page') }}">
+                            <i class="fa-solid fa-vault me-1 text-fidelity-green"></i> Asset Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link text-dark px-3 {% if request.endpoint == 'dynamic.reports_page' %}active{% endif %}" href="{{ url_for('dynamic.reports_page') }}">
                             <i class="fa-solid fa-file-invoice-dollar me-1 text-fidelity-green"></i> Reports
                         </a>
@@ -70,27 +80,20 @@
                             <i class="fa-solid fa-gears me-1 text-fidelity-green"></i> Maintenance
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="maintenanceDropdown">
-                                
                             <li>
-                               <a class="dropdown-item py-2" href="{{ url_for('bank_ledger_page') }}">
-                                    <i class="fa-solid fa-building-columns me-2 text-success"></i>Bank & Cash Register
-                                </a>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item py-2" href="{{ url_for('category_lookup_page') }}">
+                                <a class="dropdown-item py-2 {% if request.endpoint == 'category_lookup_page' %}active{% endif %}" href="{{ url_for('category_lookup_page') }}">
                                     <i class="fa-solid fa-layer-group me-2 text-fidelity-green"></i>Category List
                                 </a>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item py-2" href="{{ url_for('activity_lookup_page') }}">
+                                <a class="dropdown-item py-2 {% if request.endpoint == 'activity_lookup_page' %}active{% endif %}" href="{{ url_for('activity_lookup_page') }}">
                                     <i class="fa-solid fa-list-check me-2 text-fidelity-green"></i>Activity List
                                 </a>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item py-2" href="{{ url_for('maintenance_data_page') }}">
+                                <a class="dropdown-item py-2 {% if request.endpoint == 'maintenance_data_page' %}active{% endif %}" href="{{ url_for('maintenance_data_page') }}">
                                     <i class="fa-solid fa-database me-2 text-fidelity-green"></i>Data Inspector
                                 </a>
                             </li>

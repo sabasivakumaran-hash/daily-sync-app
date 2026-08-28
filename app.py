@@ -50,7 +50,7 @@ def get_db():
     return conn
 
 def init_db_schema():
-    """Ensure schema updates for is_cleared and app_config baseline exist."""
+    """Ensure schema updates for is_cleared, app_config baseline, and assets exist."""
     conn = get_db()
     cursor = conn.cursor()
     
@@ -72,6 +72,23 @@ def init_db_schema():
     cursor.execute("""
         INSERT OR IGNORE INTO app_config (config_key, config_value) 
         VALUES ('opening_balance', '0.00');
+    """)
+
+    # 3. Add assets_lookup table for CDs & Real Estate Property
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS assets_lookup (
+            asset_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_name TEXT NOT NULL,
+            asset_category TEXT NOT NULL,
+            account_number TEXT,
+            start_date TEXT,
+            maturity_date TEXT,
+            interest_rate REAL DEFAULT 0.0,
+            asset_value REAL DEFAULT 0.0,
+            is_active INTEGER DEFAULT 1,
+            notes TEXT,
+            updated_ts DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     conn.commit()
@@ -314,7 +331,7 @@ def toggle_cleared():
     return jsonify({'success': True, 'daily_activity_id': daily_activity_id, 'is_cleared': is_cleared})
 
 # ---------------------------------------------------------
-# 3. FINANCIAL DASHBOARD (ADMIN ONLY)
+# 3. FINANCIAL DASHBOARD & NET WORTH SUMMARY (ADMIN ONLY)
 # ---------------------------------------------------------
 @app.route('/dashboard')
 @login_required
@@ -339,6 +356,7 @@ def dashboard_page():
     if current_year_str not in available_years:
         available_years.insert(0, current_year_str)
 
+    # 1. Income & Expense KPIs for Selected Year
     kpi = conn.execute("""
         SELECT 
             COALESCE(SUM(CASE WHEN CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) as total_income,
@@ -352,6 +370,7 @@ def dashboard_page():
     total_expense = float(kpi['total_expense']) if kpi and kpi['total_expense'] else 0.0
     net_surplus = total_income - total_expense
 
+    # 2. Monthly Trend Data
     monthly_rows = conn.execute("""
         SELECT 
             strftime('%m', t.txn_date) as month_num,
@@ -378,6 +397,7 @@ def dashboard_page():
             except ValueError:
                 pass
 
+    # 3. Category Distribution
     category_dist = conn.execute("""
         SELECT c.category_name, SUM(t.total_amount) as amount
         FROM daily_activity t
@@ -390,6 +410,37 @@ def dashboard_page():
 
     cat_labels = [r['category_name'] for r in category_dist]
     cat_values = [float(r['amount']) for r in category_dist]
+
+    # 4. TEMPLE NET WORTH SUMMARY COMPUTATION
+    config_row = conn.execute(
+        "SELECT config_value FROM app_config WHERE config_key = 'opening_balance'"
+    ).fetchone()
+    opening_balance = float(config_row['config_value']) if config_row and config_row['config_value'] else 0.0
+
+    all_time_net = conn.execute("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN t.total_amount ELSE 0 END), 0) as book_net
+        FROM daily_activity t
+        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
+    """).fetchone()
+
+    operating_cash = opening_balance + float(all_time_net['book_net'] or 0.0)
+
+    asset_totals = conn.execute("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN asset_category = 'Term Deposit' THEN asset_value ELSE 0 END), 0) as total_cds,
+            COALESCE(SUM(CASE WHEN asset_category = 'Real Estate' THEN asset_value ELSE 0 END), 0) as total_real_estate,
+            COALESCE(SUM(CASE WHEN asset_category NOT IN ('Term Deposit', 'Real Estate') THEN asset_value ELSE 0 END), 0) as total_other_assets
+        FROM assets_lookup
+        WHERE is_active = 1 AND asset_value > 0
+    """).fetchone()
+
+    total_cds = float(asset_totals['total_cds'] or 0.0)
+    total_real_estate = float(asset_totals['total_real_estate'] or 0.0)
+    total_other_assets = float(asset_totals['total_other_assets'] or 0.0)
+    
+    total_net_worth = operating_cash + total_cds + total_real_estate + total_other_assets
 
     conn.close()
 
@@ -404,11 +455,213 @@ def dashboard_page():
         income_data=income_data,
         expense_data=expense_data,
         cat_labels=cat_labels,
-        cat_values=cat_values
+        cat_values=cat_values,
+        operating_cash=operating_cash,
+        total_cds=total_cds,
+        total_real_estate=total_real_estate,
+        total_other_assets=total_other_assets,
+        total_net_worth=total_net_worth
     )
 
 # ---------------------------------------------------------
-# 4. MAINTENANCE MODULE (ADMIN ONLY)
+# BANK & CASH REGISTER (ADMIN ONLY)
+# ---------------------------------------------------------
+@app.route('/bank_ledger')
+@login_required
+@role_required('admin')
+def bank_ledger_page():
+    conn = get_db()
+    
+    # 1. Capture & Parse Date Range Parameters
+    raw_start = request.args.get('start_date', '')
+    raw_end = request.args.get('end_date', '')
+    start_date = parse_date_components(raw_start) if raw_start else ''
+    end_date = parse_date_components(raw_end) if raw_end else ''
+
+    # 2. Fetch Opening Balance Baseline
+    config_row = conn.execute(
+        "SELECT config_value FROM app_config WHERE config_key = 'opening_balance'"
+    ).fetchone()
+    opening_balance = float(config_row['config_value']) if config_row and config_row['config_value'] else 0.0
+
+    # 3. Compute All-Time Cumulative KPI Balances
+    kpi_balances = conn.execute("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN t.total_amount ELSE 0 END), 0) as cleared_net,
+
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN t.total_amount ELSE 0 END), 0) as book_net,
+
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 0 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) as pending_deposits
+        FROM daily_activity t
+        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
+    """).fetchone()
+
+    bank_balance = opening_balance + float(kpi_balances['cleared_net'] or 0.0)
+    book_balance = opening_balance + float(kpi_balances['book_net'] or 0.0)
+    pending_deposits = float(kpi_balances['pending_deposits'] or 0.0)
+
+    # 4. Fetch Transactions with Running Balance & Dynamic Date Filtering
+    query = """
+        SELECT 
+            t.daily_activity_id,
+            t.txn_date,
+            CAST(COALESCE(t.session_type, 1) AS INTEGER) as session_type,
+            t.person_name,
+            t.unit_price,
+            t.quantity,
+            t.total_amount,
+            t.remarks,
+            CAST(COALESCE(t.is_active, 1) AS INTEGER) as is_active,
+            CAST(COALESCE(t.is_cleared, 0) AS INTEGER) as is_cleared,
+            a.activity_name,
+            CAST(COALESCE(a.is_income, 1) AS INTEGER) as is_income,
+            c.category_name,
+            (? + SUM(
+                CASE 
+                    WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount 
+                    WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN -t.total_amount 
+                    ELSE 0 
+                END
+            ) OVER (
+                ORDER BY t.txn_date ASC, t.daily_activity_id ASC
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            )) as running_balance
+        FROM daily_activity t
+        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
+        LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
+        WHERE 1=1
+    """
+    params = [opening_balance]
+
+    if start_date:
+        query += " AND t.txn_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND t.txn_date <= ?"
+        params.append(end_date)
+
+    query += " ORDER BY t.txn_date DESC, t.daily_activity_id DESC"
+
+    transactions = conn.execute(query, params).fetchall()
+
+    # 5. Calculate Period-Specific Metrics if Filter is Active
+    period_income = 0.0
+    period_expense = 0.0
+    for txn in transactions:
+        if txn['is_active'] == 1:
+            if txn['is_income'] == 1:
+                period_income += float(txn['total_amount'] or 0.0)
+            else:
+                period_expense += float(txn['total_amount'] or 0.0)
+
+    period_net = period_income - period_expense
+
+    conn.close()
+
+    return render_template(
+        'bank_ledger.html',
+        transactions=transactions,
+        opening_balance=opening_balance,
+        bank_balance=bank_balance,
+        book_balance=book_balance,
+        pending_deposits=pending_deposits,
+        period_income=period_income,
+        period_expense=period_expense,
+        period_net=period_net,
+        start_date=raw_start,
+        end_date=raw_end
+    )
+
+@app.route('/opening_balance/save', methods=['POST'])
+@login_required
+@role_required('admin')
+def save_opening_balance():
+    new_bal = float(request.form.get('opening_balance', 0.0))
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR REPLACE INTO app_config (config_key, config_value)
+        VALUES ('opening_balance', ?)
+    """, (str(new_bal),))
+    conn.commit()
+    conn.close()
+    flash('Opening Bank Balance updated successfully!', 'success')
+    return redirect(url_for('bank_ledger_page'))
+
+# ---------------------------------------------------------
+# ASSET MANAGEMENT MODULE (ADMIN ONLY)
+# ---------------------------------------------------------
+@app.route('/assets')
+@login_required
+@role_required('admin')
+def assets_page():
+    conn = get_db()
+    assets = conn.execute("""
+        SELECT asset_id, asset_name, asset_category, account_number,
+               start_date, maturity_date, interest_rate, asset_value,
+               CAST(COALESCE(is_active, 1) AS INTEGER) as is_active, notes
+        FROM assets_lookup
+        WHERE is_active = 1 AND asset_value > 0
+        ORDER BY asset_category ASC, asset_name ASC
+    """).fetchall()
+    
+    editing_asset = None
+    edit_id = request.args.get('edit_id')
+    if edit_id:
+        editing_asset = conn.execute(
+            "SELECT * FROM assets_lookup WHERE asset_id = ?", (edit_id,)
+        ).fetchone()
+        
+    conn.close()
+    return render_template('assets.html', assets=assets, editing_asset=editing_asset)
+
+@app.route('/assets/save', methods=['POST'])
+@login_required
+@role_required('admin')
+def assets_save():
+    asset_id = request.form.get('asset_id')
+    asset_name = request.form.get('asset_name', '').strip()
+    asset_category = request.form.get('asset_category', 'Term Deposit')
+    account_number = request.form.get('account_number', '').strip()
+    raw_start = request.form.get('start_date', '')
+    raw_maturity = request.form.get('maturity_date', '')
+    interest_rate = float(request.form.get('interest_rate', 0.0))
+    asset_value = float(request.form.get('asset_value', 0.0))
+    notes = request.form.get('notes', '').strip()
+    is_active = int(request.form.get('is_active', 1))
+
+    start_date = parse_date_components(raw_start) if raw_start else None
+    maturity_date = parse_date_components(raw_maturity) if raw_maturity else None
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if asset_id:
+        cursor.execute("""
+            UPDATE assets_lookup
+            SET asset_name = ?, asset_category = ?, account_number = ?,
+                start_date = ?, maturity_date = ?, interest_rate = ?,
+                asset_value = ?, notes = ?, is_active = ?, updated_ts = CURRENT_TIMESTAMP
+            WHERE asset_id = ?
+        """, (asset_name, asset_category, account_number, start_date, maturity_date,
+              interest_rate, asset_value, notes, is_active, asset_id))
+        flash(f'Asset "{asset_name}" updated successfully!', 'success')
+    else:
+        cursor.execute("""
+            INSERT INTO assets_lookup 
+            (asset_name, asset_category, account_number, start_date, maturity_date, interest_rate, asset_value, notes, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (asset_name, asset_category, account_number, start_date, maturity_date, interest_rate, asset_value, notes, is_active))
+        flash(f'New asset "{asset_name}" created successfully!', 'success')
+
+    conn.commit()
+    conn.close()
+    return redirect(url_for('assets_page'))
+
+# ---------------------------------------------------------
+# 4. MAINTENANCE MODULE (LOOKUPS & DATA INSPECTOR)
 # ---------------------------------------------------------
 @app.route('/maintenance/category_lookup')
 @login_required
@@ -561,133 +814,6 @@ def maintenance_data_page():
     conn.close()
 
     return render_template('maintenance_data.html', data_rows=data_rows)
-
-# ---------------------------------------------------------
-# MAINTENANCE: BANK & CASH REGISTER (ADMIN ONLY)
-# ---------------------------------------------------------
-@app.route('/maintenance/bank_ledger')
-@login_required
-@role_required('admin')
-def bank_ledger_page():
-    conn = get_db()
-    
-    # 1. Capture & Parse Date Range Parameters
-    raw_start = request.args.get('start_date', '')
-    raw_end = request.args.get('end_date', '')
-    start_date = parse_date_components(raw_start) if raw_start else ''
-    end_date = parse_date_components(raw_end) if raw_end else ''
-
-    # 2. Fetch Opening Balance Baseline
-    config_row = conn.execute(
-        "SELECT config_value FROM app_config WHERE config_key = 'opening_balance'"
-    ).fetchone()
-    opening_balance = float(config_row['config_value']) if config_row and config_row['config_value'] else 0.0
-
-    # 3. Compute All-Time Cumulative KPI Balances
-    kpi_balances = conn.execute("""
-        SELECT 
-            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
-            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN t.total_amount ELSE 0 END), 0) as cleared_net,
-
-            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
-            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN t.total_amount ELSE 0 END), 0) as book_net,
-
-            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 0 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) as pending_deposits
-        FROM daily_activity t
-        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
-    """).fetchone()
-
-    bank_balance = opening_balance + float(kpi_balances['cleared_net'] or 0.0)
-    book_balance = opening_balance + float(kpi_balances['book_net'] or 0.0)
-    pending_deposits = float(kpi_balances['pending_deposits'] or 0.0)
-
-    # 4. Fetch Transactions with Running Balance & Dynamic Date Filtering
-    query = """
-        SELECT 
-            t.daily_activity_id,
-            t.txn_date,
-            CAST(COALESCE(t.session_type, 1) AS INTEGER) as session_type,
-            t.person_name,
-            t.unit_price,
-            t.quantity,
-            t.total_amount,
-            t.remarks,
-            CAST(COALESCE(t.is_active, 1) AS INTEGER) as is_active,
-            CAST(COALESCE(t.is_cleared, 0) AS INTEGER) as is_cleared,
-            a.activity_name,
-            CAST(COALESCE(a.is_income, 1) AS INTEGER) as is_income,
-            c.category_name,
-            (? + SUM(
-                CASE 
-                    WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount 
-                    WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN -t.total_amount 
-                    ELSE 0 
-                END
-            ) OVER (
-                ORDER BY t.txn_date ASC, t.daily_activity_id ASC
-                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-            )) as running_balance
-        FROM daily_activity t
-        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
-        LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
-        WHERE 1=1
-    """
-    params = [opening_balance]
-
-    if start_date:
-        query += " AND t.txn_date >= ?"
-        params.append(start_date)
-    if end_date:
-        query += " AND t.txn_date <= ?"
-        params.append(end_date)
-
-    query += " ORDER BY t.txn_date DESC, t.daily_activity_id DESC"
-
-    transactions = conn.execute(query, params).fetchall()
-
-    # 5. Calculate Period-Specific Metrics if Filter is Active
-    period_income = 0.0
-    period_expense = 0.0
-    for txn in transactions:
-        if txn['is_active'] == 1:
-            if txn['is_income'] == 1:
-                period_income += float(txn['total_amount'] or 0.0)
-            else:
-                period_expense += float(txn['total_amount'] or 0.0)
-
-    period_net = period_income - period_expense
-
-    conn.close()
-
-    return render_template(
-        'bank_ledger.html',
-        transactions=transactions,
-        opening_balance=opening_balance,
-        bank_balance=bank_balance,
-        book_balance=book_balance,
-        pending_deposits=pending_deposits,
-        period_income=period_income,
-        period_expense=period_expense,
-        period_net=period_net,
-        start_date=raw_start,
-        end_date=raw_end
-    )
-
-@app.route('/maintenance/opening_balance/save', methods=['POST'])
-@login_required
-@role_required('admin')
-def save_opening_balance():
-    new_bal = float(request.form.get('opening_balance', 0.0))
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT OR REPLACE INTO app_config (config_key, config_value)
-        VALUES ('opening_balance', ?)
-    """, (str(new_bal),))
-    conn.commit()
-    conn.close()
-    flash('Opening Bank Balance updated successfully!', 'success')
-    return redirect(url_for('bank_ledger_page'))
 
 # ---------------------------------------------------------
 # APPLICATION ENTRY POINT

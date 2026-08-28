@@ -70,6 +70,13 @@
                             <i class="fa-solid fa-gears me-1 text-fidelity-green"></i> Maintenance
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="maintenanceDropdown">
+                                
+                            <li>
+                               <a class="dropdown-item py-2" href="{{ url_for('bank_ledger_page') }}">
+                                    <i class="fa-solid fa-building-columns me-2 text-success"></i>Bank & Cash Register
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item py-2" href="{{ url_for('category_lookup_page') }}">
                                     <i class="fa-solid fa-layer-group me-2 text-fidelity-green"></i>Category List

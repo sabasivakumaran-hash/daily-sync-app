@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import (
     LoginManager, UserMixin, login_user, logout_user, 
     login_required, current_user
@@ -39,7 +39,7 @@ app.jinja_env.filters['badge_type'] = badge_type_filter
 app.jinja_env.filters['badge_status'] = badge_status_filter
 
 # ---------------------------------------------------------
-# DATABASE CONNECTION FACTORY
+# DATABASE CONNECTION FACTORY & AUTO-MIGRATION
 # ---------------------------------------------------------
 def get_db():
     """Direct database connection factory with Row factory enabled."""
@@ -48,6 +48,38 @@ def get_db():
     if app.config.get('SQLITE_FOREIGN_KEYS'):
         conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+def init_db_schema():
+    """Ensure schema updates for is_cleared and app_config baseline exist."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 1. Add is_cleared column if missing
+    try:
+        cursor.execute("ALTER TABLE daily_activity ADD COLUMN is_cleared INTEGER DEFAULT 0;")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    # 2. Add app_config table for opening balance baseline
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS app_config (
+            config_key TEXT PRIMARY KEY,
+            config_value TEXT
+        );
+    """)
+    
+    # Set default Opening Balance baseline ($0.00) if not present
+    cursor.execute("""
+        INSERT OR IGNORE INTO app_config (config_key, config_value) 
+        VALUES ('opening_balance', '0.00');
+    """)
+
+    conn.commit()
+    conn.close()
+
+# Initialize schema structure at app launch
+with app.app_context():
+    init_db_schema()
 
 # ---------------------------------------------------------
 # FLASK-LOGIN & USER MODEL SETUP
@@ -120,13 +152,14 @@ def index():
     return redirect(url_for('daily_activity_page'))
 
 # ---------------------------------------------------------
-# 2. DAILY ACTIVITY MODULE
+# 2. DAILY ACTIVITY MODULE (VOLUNTEER ENTRY VIEW)
 # ---------------------------------------------------------
 @app.route('/daily_activity', methods=['GET'])
 @login_required
 def daily_activity_page():
     conn = get_db()
     
+    # 1. Fetch Existing Person Names for Autocomplete
     name_rows = conn.execute("""
         SELECT DISTINCT person_name 
         FROM daily_activity 
@@ -135,6 +168,7 @@ def daily_activity_page():
     """).fetchall()
     existing_names = [r['person_name'] for r in name_rows]
 
+    # 2. Fetch Active Activities
     activities = conn.execute("""
         SELECT a.activity_lookup_id, a.activity_name, a.default_amount, 
                CAST(COALESCE(a.is_income, 1) AS INTEGER) as is_income, 
@@ -146,6 +180,7 @@ def daily_activity_page():
         ORDER BY activity_name ASC
     """).fetchall()
 
+    # 3. Check for Edit ID
     edit_id = request.args.get('edit_id')
     editing_txn = None
     if edit_id:
@@ -161,6 +196,7 @@ def daily_activity_page():
             WHERE t.daily_activity_id = ?
         """, (edit_id,)).fetchone()
 
+    # 4. Fetch Transactions for Daily Activity Table
     transactions = conn.execute("""
         SELECT 
             t.daily_activity_id,
@@ -209,17 +245,15 @@ def daily_activity_save():
     cursor = conn.cursor()
 
     if daily_activity_id:
+        # EDIT EXISTING ENTRY: Retain existing is_cleared status
         existing = cursor.execute(
-            "SELECT txn_date FROM daily_activity WHERE daily_activity_id = ?", 
+            "SELECT txn_date, is_cleared FROM daily_activity WHERE daily_activity_id = ?", 
             (daily_activity_id,)
         ).fetchone()
 
         parsed_new_date = parse_date_components(raw_date)
-        if parsed_new_date:
-            txn_date = parsed_new_date
-        else:
-            txn_date = existing['txn_date'] if existing else datetime.now().strftime('%Y-%m-%d')
-
+        txn_date = parsed_new_date if parsed_new_date else (existing['txn_date'] if existing else datetime.now().strftime('%Y-%m-%d'))
+        
         cursor.execute("""
             UPDATE daily_activity 
             SET txn_date = ?, 
@@ -238,17 +272,46 @@ def daily_activity_save():
         flash(f'Daily Activity entry #{daily_activity_id} updated successfully!', 'success')
         
     else:
+        # NEW ENTRY: Always default is_cleared to 0 (Pending deposit/check)
         txn_date = parse_date_components(raw_date) or datetime.now().strftime('%Y-%m-%d')
+        is_cleared = 0  
+
         cursor.execute("""
             INSERT INTO daily_activity 
-            (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, remarks, is_active, updated_ts)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, remarks, is_active))
+            (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, remarks, is_active, is_cleared, updated_ts)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (txn_date, session_type, activity_lookup_id, person_name, unit_price, quantity, total_amount, remarks, is_active, is_cleared))
         flash('New Daily Activity recorded successfully!', 'success')
 
     conn.commit()
     conn.close()
     return redirect(url_for('daily_activity_page'))
+
+# ---------------------------------------------------------
+# AJAX ROUTE: TOGGLE CLEARED STATUS INLINE (ADMIN/RECONCILIATION)
+# ---------------------------------------------------------
+@app.route('/daily_activity/toggle_cleared', methods=['POST'])
+@login_required
+@role_required('admin')
+def toggle_cleared():
+    data = request.get_json() or {}
+    daily_activity_id = data.get('daily_activity_id')
+    is_cleared = 1 if data.get('is_cleared') else 0
+
+    if not daily_activity_id:
+        return jsonify({'success': False, 'message': 'Invalid transaction ID'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE daily_activity 
+        SET is_cleared = ?, updated_ts = CURRENT_TIMESTAMP 
+        WHERE daily_activity_id = ?
+    """, (is_cleared, daily_activity_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'daily_activity_id': daily_activity_id, 'is_cleared': is_cleared})
 
 # ---------------------------------------------------------
 # 3. FINANCIAL DASHBOARD (ADMIN ONLY)
@@ -486,7 +549,8 @@ def maintenance_data_page():
     query = """
         SELECT d.daily_activity_id, d.txn_date, d.session_type, d.person_name,
                a.activity_name, c.category_name, a.is_income,
-               d.unit_price, d.quantity, d.total_amount, d.remarks, d.is_active
+               d.unit_price, d.quantity, d.total_amount, d.remarks, d.is_active,
+               d.is_cleared
         FROM daily_activity d
         LEFT JOIN activity_lookup a ON d.activity_lookup_id = a.activity_lookup_id
         LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
@@ -497,6 +561,133 @@ def maintenance_data_page():
     conn.close()
 
     return render_template('maintenance_data.html', data_rows=data_rows)
+
+# ---------------------------------------------------------
+# MAINTENANCE: BANK & CASH REGISTER (ADMIN ONLY)
+# ---------------------------------------------------------
+@app.route('/maintenance/bank_ledger')
+@login_required
+@role_required('admin')
+def bank_ledger_page():
+    conn = get_db()
+    
+    # 1. Capture & Parse Date Range Parameters
+    raw_start = request.args.get('start_date', '')
+    raw_end = request.args.get('end_date', '')
+    start_date = parse_date_components(raw_start) if raw_start else ''
+    end_date = parse_date_components(raw_end) if raw_end else ''
+
+    # 2. Fetch Opening Balance Baseline
+    config_row = conn.execute(
+        "SELECT config_value FROM app_config WHERE config_key = 'opening_balance'"
+    ).fetchone()
+    opening_balance = float(config_row['config_value']) if config_row and config_row['config_value'] else 0.0
+
+    # 3. Compute All-Time Cumulative KPI Balances
+    kpi_balances = conn.execute("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN t.total_amount ELSE 0 END), 0) as cleared_net,
+
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN t.total_amount ELSE 0 END), 0) as book_net,
+
+            COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 0 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) as pending_deposits
+        FROM daily_activity t
+        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
+    """).fetchone()
+
+    bank_balance = opening_balance + float(kpi_balances['cleared_net'] or 0.0)
+    book_balance = opening_balance + float(kpi_balances['book_net'] or 0.0)
+    pending_deposits = float(kpi_balances['pending_deposits'] or 0.0)
+
+    # 4. Fetch Transactions with Running Balance & Dynamic Date Filtering
+    query = """
+        SELECT 
+            t.daily_activity_id,
+            t.txn_date,
+            CAST(COALESCE(t.session_type, 1) AS INTEGER) as session_type,
+            t.person_name,
+            t.unit_price,
+            t.quantity,
+            t.total_amount,
+            t.remarks,
+            CAST(COALESCE(t.is_active, 1) AS INTEGER) as is_active,
+            CAST(COALESCE(t.is_cleared, 0) AS INTEGER) as is_cleared,
+            a.activity_name,
+            CAST(COALESCE(a.is_income, 1) AS INTEGER) as is_income,
+            c.category_name,
+            (? + SUM(
+                CASE 
+                    WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount 
+                    WHEN t.is_active = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 0 THEN -t.total_amount 
+                    ELSE 0 
+                END
+            ) OVER (
+                ORDER BY t.txn_date ASC, t.daily_activity_id ASC
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            )) as running_balance
+        FROM daily_activity t
+        LEFT JOIN activity_lookup a ON t.activity_lookup_id = a.activity_lookup_id
+        LEFT JOIN category_lookup c ON a.category_lookup_id = c.category_lookup_id
+        WHERE 1=1
+    """
+    params = [opening_balance]
+
+    if start_date:
+        query += " AND t.txn_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND t.txn_date <= ?"
+        params.append(end_date)
+
+    query += " ORDER BY t.txn_date DESC, t.daily_activity_id DESC"
+
+    transactions = conn.execute(query, params).fetchall()
+
+    # 5. Calculate Period-Specific Metrics if Filter is Active
+    period_income = 0.0
+    period_expense = 0.0
+    for txn in transactions:
+        if txn['is_active'] == 1:
+            if txn['is_income'] == 1:
+                period_income += float(txn['total_amount'] or 0.0)
+            else:
+                period_expense += float(txn['total_amount'] or 0.0)
+
+    period_net = period_income - period_expense
+
+    conn.close()
+
+    return render_template(
+        'bank_ledger.html',
+        transactions=transactions,
+        opening_balance=opening_balance,
+        bank_balance=bank_balance,
+        book_balance=book_balance,
+        pending_deposits=pending_deposits,
+        period_income=period_income,
+        period_expense=period_expense,
+        period_net=period_net,
+        start_date=raw_start,
+        end_date=raw_end
+    )
+
+@app.route('/maintenance/opening_balance/save', methods=['POST'])
+@login_required
+@role_required('admin')
+def save_opening_balance():
+    new_bal = float(request.form.get('opening_balance', 0.0))
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR REPLACE INTO app_config (config_key, config_value)
+        VALUES ('opening_balance', ?)
+    """, (str(new_bal),))
+    conn.commit()
+    conn.close()
+    flash('Opening Bank Balance updated successfully!', 'success')
+    return redirect(url_for('bank_ledger_page'))
 
 # ---------------------------------------------------------
 # APPLICATION ENTRY POINT

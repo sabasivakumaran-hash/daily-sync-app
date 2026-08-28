@@ -212,13 +212,16 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function() {
+    // 1. Initialize Flatpickr Datepicker
     flatpickr(".datepicker", {
       dateFormat: "m/d/Y",
       allowInput: true
     });
 
+    // 2. Initialize DataTables
+    let table = null;
     if (window.jQuery && $.fn.DataTable) {
-      $('#bankLedgerTable').DataTable({
+      table = $('#bankLedgerTable').DataTable({
         order: [], 
         pageLength: 25,
         lengthMenu: [10, 25, 50, 100],
@@ -230,32 +233,48 @@
       });
     }
 
-    document.querySelectorAll('.cleared-toggle').forEach(function(checkbox) {
-      checkbox.addEventListener('change', function() {
-        const txnId = this.getAttribute('data-id');
-        const isCleared = this.checked ? 1 : 0;
+    // 3. Event Delegation for Cleared Toggle Checkboxes (Works across ALL pages & page sizes)
+    const ledgerTable = document.getElementById('bankLedgerTable');
+    if (ledgerTable) {
+      ledgerTable.addEventListener('change', function(event) {
+        if (event.target && event.target.classList.contains('cleared-toggle')) {
+          const checkbox = event.target;
+          const txnId = checkbox.getAttribute('data-id');
+          const isCleared = checkbox.checked ? 1 : 0;
 
-        fetch("{{ url_for('toggle_cleared') }}", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ daily_activity_id: txnId, is_cleared: isCleared })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            window.location.reload();
-          } else {
-            alert('Failed to update cleared status.');
-            this.checked = !this.checked;
-          }
-        })
-        .catch(error => {
-          console.error('Error updating status:', error);
-          alert('An error occurred.');
-          this.checked = !this.checked;
-        });
+          // Disable checkbox briefly during AJAX request to prevent duplicate clicks
+          checkbox.disabled = true;
+
+          fetch("{{ url_for('toggle_cleared') }}", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ 
+              daily_activity_id: txnId, 
+              is_cleared: isCleared 
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            checkbox.disabled = false;
+            if (data.success) {
+              // Reload page to re-calculate cumulative running balances accurately
+              window.location.reload();
+            } else {
+              alert('Failed to update cleared status.');
+              checkbox.checked = !checkbox.checked;
+            }
+          })
+          .catch(error => {
+            checkbox.disabled = false;
+            console.error('Error updating status:', error);
+            alert('An error occurred while updating status.');
+            checkbox.checked = !checkbox.checked;
+          });
+        }
       });
-    });
+    }
   });
 </script>
 {% endblock %}

@@ -180,3 +180,19 @@ tr.report-expense-row td,
 tr.report-expense-row {
     background-color: #fdf2f2 !important;
 }
+/* Custom Payment Reminder Banner - Fidelity Theme */
+.alert-fidelity-reminder {
+    background-color: #e6f4ea !important; /* Soft Emerald Tint */
+    border-left: 4px solid #006847 !important; /* Fidelity Green Accent */
+    color: #1e293b;
+}
+
+.alert-fidelity-reminder .alert-heading {
+    color: #006847 !important;
+}
+
+.badge-fidelity-due {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #a3cfbb;
+}

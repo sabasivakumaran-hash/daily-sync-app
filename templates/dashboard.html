@@ -8,6 +8,41 @@
 
 <div class="container-fluid py-3 px-md-4">
     
+    <!-- CONDITIONAL URGENT PAYMENT REMINDER BANNER (ABOVE HEADER) -->
+    <!-- CONDITIONAL URGENT PAYMENT REMINDER BANNER -->
+    {% if urgent_reminders %}
+    <div class="alert alert-fidelity-reminder shadow-sm mb-3 alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <h6 class="alert-heading fw-bold mb-1">
+                    <i class="fa-solid fa-bell text-success me-2 fs-5"></i>
+                    Action Required: {{ urgent_reminders | length }} Upcoming Payment Reminder(s) Due
+                </h6>
+                <ul class="mb-0 ps-3 small text-secondary">
+                    {% for item in urgent_reminders %}
+                    <li>
+                        <strong>{{ item.reminder_title }}</strong> ({{ item.amount_due | currency }}) — 
+                        {% if item.days_left < 0 %}
+                            <span class="badge bg-danger">Overdue by {{ item.days_left | abs }} day(s)</span>
+                        {% elif item.days_left == 0 %}
+                            <span class="badge bg-danger">Due Today</span>
+                        {% else %}
+                            <span class="badge badge-fidelity-due">Due in {{ item.days_left }} day(s) on {{ item.due_date | ui_date }}</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <a href="{{ url_for('reminders_page') }}" class="btn btn-success btn-sm fw-semibold shadow-sm">
+                    <i class="fa-solid fa-envelope-open-text me-1"></i> Manage Reminders
+                </a>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
     <!-- HEADER & YEAR SELECTOR -->
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
         <div>

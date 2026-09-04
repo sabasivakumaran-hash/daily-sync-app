@@ -7,6 +7,7 @@ from flask_login import (
     login_required, current_user
 )
 from werkzeug.security import check_password_hash
+from flask_mail import Mail, Message
 
 # Modular Configuration & Helpers Import
 from config import config
@@ -16,10 +17,23 @@ from helpers import (
     badge_session_filter, badge_type_filter, badge_status_filter
 )
 
-# Initialize Flask Application
+# ---------------------------------------------------------
+# INITIALIZE FLASK APPLICATION & CONFIG
+# ---------------------------------------------------------
 app = Flask(__name__)
 env = os.environ.get('FLASK_ENV', 'default')
 app.config.from_object(config[env])
+
+# Flask-Mail Configuration (Uses Gmail App Password)
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'sriganeshtemplebc@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'abcdefghijklmnop') # <--- Paste 16-character App Password here
+app.config['MAIL_DEFAULT_SENDER'] = ('Sri Ganesh Temple Admin', app.config['MAIL_USERNAME'])
+
+mail = Mail(app)
 
 # Register Modular Blueprints
 from dynamic import dynamic_bp
@@ -50,7 +64,7 @@ def get_db():
     return conn
 
 def init_db_schema():
-    """Ensure schema updates for is_cleared, app_config baseline, and assets exist."""
+    """Ensure schema updates for is_cleared, app_config baseline, assets, and reminders exist."""
     conn = get_db()
     cursor = conn.cursor()
     
@@ -88,6 +102,25 @@ def init_db_schema():
             is_active INTEGER DEFAULT 1,
             notes TEXT,
             updated_ts DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    # 4. Add payment_reminders table for tracking upcoming bills & email alerts
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payment_reminders (
+            reminder_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reminder_title TEXT NOT NULL,
+            activity_id INTEGER,
+            amount_due REAL DEFAULT 0.0,
+            due_date TEXT NOT NULL,
+            advance_days INTEGER DEFAULT 7,
+            recipient_emails TEXT NOT NULL,
+            frequency TEXT DEFAULT 'One-time',
+            status TEXT DEFAULT 'Pending',
+            notes TEXT,
+            last_sent_ts DATETIME,
+            created_ts DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (activity_id) REFERENCES activity_lookup (activity_lookup_id)
         );
     """)
 
@@ -176,7 +209,6 @@ def index():
 def daily_activity_page():
     conn = get_db()
     
-    # 1. Fetch Existing Person Names for Autocomplete
     name_rows = conn.execute("""
         SELECT DISTINCT person_name 
         FROM daily_activity 
@@ -185,7 +217,6 @@ def daily_activity_page():
     """).fetchall()
     existing_names = [r['person_name'] for r in name_rows]
 
-    # 2. Fetch Active Activities
     activities = conn.execute("""
         SELECT a.activity_lookup_id, a.activity_name, a.default_amount, 
                CAST(COALESCE(a.is_income, 1) AS INTEGER) as is_income, 
@@ -197,7 +228,6 @@ def daily_activity_page():
         ORDER BY activity_name ASC
     """).fetchall()
 
-    # 3. Check for Edit ID
     edit_id = request.args.get('edit_id')
     editing_txn = None
     if edit_id:
@@ -213,7 +243,6 @@ def daily_activity_page():
             WHERE t.daily_activity_id = ?
         """, (edit_id,)).fetchone()
 
-    # 4. Fetch Transactions for Daily Activity Table
     transactions = conn.execute("""
         SELECT 
             t.daily_activity_id,
@@ -262,7 +291,6 @@ def daily_activity_save():
     cursor = conn.cursor()
 
     if daily_activity_id:
-        # EDIT EXISTING ENTRY: Retain existing is_cleared status
         existing = cursor.execute(
             "SELECT txn_date, is_cleared FROM daily_activity WHERE daily_activity_id = ?", 
             (daily_activity_id,)
@@ -289,7 +317,6 @@ def daily_activity_save():
         flash(f'Daily Activity entry #{daily_activity_id} updated successfully!', 'success')
         
     else:
-        # NEW ENTRY: Always default is_cleared to 0 (Pending deposit/check)
         txn_date = parse_date_components(raw_date) or datetime.now().strftime('%Y-%m-%d')
         is_cleared = 0  
 
@@ -304,9 +331,6 @@ def daily_activity_save():
     conn.close()
     return redirect(url_for('daily_activity_page'))
 
-# ---------------------------------------------------------
-# AJAX ROUTE: TOGGLE CLEARED STATUS INLINE (ADMIN/RECONCILIATION)
-# ---------------------------------------------------------
 @app.route('/daily_activity/toggle_cleared', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -439,8 +463,18 @@ def dashboard_page():
     total_cds = float(asset_totals['total_cds'] or 0.0)
     total_real_estate = float(asset_totals['total_real_estate'] or 0.0)
     total_other_assets = float(asset_totals['total_other_assets'] or 0.0)
-    
     total_net_worth = operating_cash + total_cds + total_real_estate + total_other_assets
+
+    # 5. URGENT PAYMENT REMINDERS (DUE WITHIN ADVANCE_DAYS WINDOW)
+    urgent_reminders = conn.execute("""
+        SELECT r.*, a.activity_name,
+               CAST(julianday(r.due_date) - julianday('now', 'localtime') AS INTEGER) as days_left
+        FROM payment_reminders r
+        LEFT JOIN activity_lookup a ON r.activity_id = a.activity_lookup_id
+        WHERE r.status != 'Paid'
+          AND (julianday(r.due_date) - julianday('now', 'localtime')) <= r.advance_days
+        ORDER BY r.due_date ASC
+    """).fetchall()
 
     conn.close()
 
@@ -460,7 +494,8 @@ def dashboard_page():
         total_cds=total_cds,
         total_real_estate=total_real_estate,
         total_other_assets=total_other_assets,
-        total_net_worth=total_net_worth
+        total_net_worth=total_net_worth,
+        urgent_reminders=urgent_reminders
     )
 
 # ---------------------------------------------------------
@@ -472,19 +507,16 @@ def dashboard_page():
 def bank_ledger_page():
     conn = get_db()
     
-    # 1. Capture & Parse Date Range Parameters
     raw_start = request.args.get('start_date', '')
     raw_end = request.args.get('end_date', '')
     start_date = parse_date_components(raw_start) if raw_start else ''
     end_date = parse_date_components(raw_end) if raw_end else ''
 
-    # 2. Fetch Opening Balance Baseline
     config_row = conn.execute(
         "SELECT config_value FROM app_config WHERE config_key = 'opening_balance'"
     ).fetchone()
     opening_balance = float(config_row['config_value']) if config_row and config_row['config_value'] else 0.0
 
-    # 3. Compute All-Time Cumulative KPI Balances
     kpi_balances = conn.execute("""
         SELECT 
             COALESCE(SUM(CASE WHEN t.is_active = 1 AND t.is_cleared = 1 AND CAST(COALESCE(a.is_income, 1) AS INTEGER) = 1 THEN t.total_amount ELSE 0 END), 0) -
@@ -502,7 +534,6 @@ def bank_ledger_page():
     book_balance = opening_balance + float(kpi_balances['book_net'] or 0.0)
     pending_deposits = float(kpi_balances['pending_deposits'] or 0.0)
 
-    # 4. Fetch Transactions with Running Balance & Dynamic Date Filtering
     query = """
         SELECT 
             t.daily_activity_id,
@@ -546,7 +577,6 @@ def bank_ledger_page():
 
     transactions = conn.execute(query, params).fetchall()
 
-    # 5. Calculate Period-Specific Metrics if Filter is Active
     period_income = 0.0
     period_expense = 0.0
     for txn in transactions:
@@ -661,7 +691,130 @@ def assets_save():
     return redirect(url_for('assets_page'))
 
 # ---------------------------------------------------------
-# 4. MAINTENANCE MODULE (LOOKUPS & DATA INSPECTOR)
+# PAYMENT REMINDERS MODULE (ADMIN ONLY)
+# ---------------------------------------------------------
+@app.route('/maintenance/reminders')
+@login_required
+@role_required('admin')
+def reminders_page():
+    conn = get_db()
+    
+    activities = conn.execute("""
+        SELECT activity_lookup_id, activity_name 
+        FROM activity_lookup 
+        WHERE is_active = 1 
+        ORDER BY activity_name ASC
+    """).fetchall()
+
+    reminders = conn.execute("""
+        SELECT r.*, a.activity_name,
+               CAST(julianday(r.due_date) - julianday('now', 'localtime') AS INTEGER) as days_remaining
+        FROM payment_reminders r
+        LEFT JOIN activity_lookup a ON r.activity_id = a.activity_lookup_id
+        ORDER BY r.due_date ASC
+    """).fetchall()
+
+    editing_reminder = None
+    edit_id = request.args.get('edit_id')
+    if edit_id:
+        editing_reminder = conn.execute(
+            "SELECT * FROM payment_reminders WHERE reminder_id = ?", (edit_id,)
+        ).fetchone()
+
+    conn.close()
+    return render_template('reminders.html', 
+                           reminders=reminders, 
+                           activities=activities, 
+                           editing_reminder=editing_reminder)
+
+@app.route('/maintenance/reminders/save', methods=['POST'])
+@login_required
+@role_required('admin')
+def reminders_save():
+    reminder_id = request.form.get('reminder_id')
+    reminder_title = request.form.get('reminder_title', '').strip()
+    activity_id = request.form.get('activity_id') or None
+    amount_due = float(request.form.get('amount_due', 0.0))
+    raw_due_date = request.form.get('due_date', '')
+    advance_days = int(request.form.get('advance_days', 7))
+    recipient_emails = request.form.get('recipient_emails', '').strip()
+    frequency = request.form.get('frequency', 'One-time')
+    status = request.form.get('status', 'Pending')
+    notes = request.form.get('notes', '').strip()
+
+    due_date = parse_date_components(raw_due_date) if raw_due_date else None
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if reminder_id:
+        cursor.execute("""
+            UPDATE payment_reminders
+            SET reminder_title = ?, activity_id = ?, amount_due = ?, due_date = ?,
+                advance_days = ?, recipient_emails = ?, frequency = ?, status = ?, notes = ?
+            WHERE reminder_id = ?
+        """, (reminder_title, activity_id, amount_due, due_date, advance_days,
+              recipient_emails, frequency, status, notes, reminder_id))
+        flash(f'Payment reminder "{reminder_title}" updated successfully!', 'success')
+    else:
+        cursor.execute("""
+            INSERT INTO payment_reminders
+            (reminder_title, activity_id, amount_due, due_date, advance_days, recipient_emails, frequency, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (reminder_title, activity_id, amount_due, due_date, advance_days, recipient_emails, frequency, status, notes))
+        flash(f'New payment reminder "{reminder_title}" created successfully!', 'success')
+
+    conn.commit()
+    conn.close()
+    return redirect(url_for('reminders_page'))
+
+@app.route('/maintenance/reminders/send/<int:reminder_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def send_reminder_email(reminder_id):
+    conn = get_db()
+    reminder = conn.execute("""
+        SELECT r.*, a.activity_name 
+        FROM payment_reminders r
+        LEFT JOIN activity_lookup a ON r.activity_id = a.activity_lookup_id
+        WHERE r.reminder_id = ?
+    """, (reminder_id,)).fetchone()
+
+    if not reminder:
+        conn.close()
+        flash('Reminder entry not found.', 'danger')
+        return redirect(url_for('reminders_page'))
+
+    recipients = [e.strip() for e in reminder['recipient_emails'].split(',') if e.strip()]
+
+    if not recipients:
+        conn.close()
+        flash('No valid recipient email addresses found.', 'warning')
+        return redirect(url_for('reminders_page'))
+
+    try:
+        msg = Message(
+            subject=f"Payment Reminder: {reminder['reminder_title']} - Due {reminder['due_date']}",
+            recipients=recipients
+        )
+        msg.html = render_template('email_reminder_template.html', reminder=reminder)
+        mail.send(msg)
+
+        conn.execute("""
+            UPDATE payment_reminders 
+            SET last_sent_ts = CURRENT_TIMESTAMP, status = 'Reminder Sent'
+            WHERE reminder_id = ?
+        """, (reminder_id,))
+        conn.commit()
+        flash(f'Reminder email sent successfully to {", ".join(recipients)}!', 'success')
+    except Exception as e:
+        flash(f'Failed to send email: {str(e)}', 'danger')
+
+    conn.close()
+    return redirect(url_for('reminders_page'))
+
+# ---------------------------------------------------------
+# MAINTENANCE LOOKUPS & DATA INSPECTOR (ADMIN ONLY)
 # ---------------------------------------------------------
 @app.route('/maintenance/category_lookup')
 @login_required

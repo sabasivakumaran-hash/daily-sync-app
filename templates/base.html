@@ -109,6 +109,11 @@
                                     <i class="fa-solid fa-file-csv me-2 text-success"></i>Export Records to CSV
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item py-2 {% if request.endpoint == 'reminders_page' %}active{% endif %}" href="{{ url_for('reminders_page') }}">
+                                    <i class="fa-solid fa-clock-rotate-left me-2 text-fidelity-green"></i>Payment Reminders
+                                </a>
+                            </li>
                         </ul>
                     </li>
                     {% endif %}
